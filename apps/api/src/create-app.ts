@@ -1,5 +1,6 @@
 import type { AgentRepository } from "../../../packages/core/src/agent-repository.js";
 import type { PublishRequest } from "../../../packages/core/src/agent-record.js";
+import { validateManifest } from "../../../packages/validation/src/validate-manifest.js";
 import type { Env } from "./env.js";
 
 export type App = {
@@ -136,6 +137,18 @@ export function createApp(repository: AgentRepository): App {
               error: {
                 code: "invalid_publish_request",
                 message: "Publish request is invalid"
+              }
+            },
+            { status: 400 }
+          );
+        }
+
+        if (!validateManifest(payload.manifest)) {
+          return json(
+            {
+              error: {
+                code: "invalid_manifest",
+                message: "Manifest failed schema validation"
               }
             },
             { status: 400 }

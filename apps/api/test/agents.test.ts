@@ -235,6 +235,8 @@ test("POST /api/v1/publish creates a new agent version", async () => {
       },
       body: JSON.stringify({
         manifest: {
+          apiVersion: "agentlib.dev/v1alpha1",
+          kind: "Agent",
           metadata: {
             namespace: "raul",
             name: "code-reviewer",
@@ -242,6 +244,12 @@ test("POST /api/v1/publish creates a new agent version", async () => {
             title: "Code Reviewer",
             description: "Reviews pull requests for correctness and maintainability.",
             license: "MIT"
+          },
+          spec: {
+            summary: "Reviews pull requests with a focus on correctness and maintainability.",
+            inputs: [],
+            outputs: [],
+            tools: []
           }
         },
         readme: "# Code Reviewer\n",
@@ -288,12 +296,20 @@ test("POST /api/v1/publish returns 409 when the version already exists", async (
       },
       body: JSON.stringify({
         manifest: {
+          apiVersion: "agentlib.dev/v1alpha1",
+          kind: "Agent",
           metadata: {
             namespace: "raul",
             name: "code-reviewer",
             version: "0.3.0",
             title: "Code Reviewer",
             description: "Reviews pull requests for correctness and maintainability."
+          },
+          spec: {
+            summary: "Reviews pull requests with a focus on correctness and maintainability.",
+            inputs: [],
+            outputs: [],
+            tools: []
           }
         },
         readme: "# Code Reviewer\n",
@@ -333,8 +349,20 @@ test("POST /api/v1/publish returns 400 for an invalid payload", async () => {
       },
       body: JSON.stringify({
         manifest: {
+          apiVersion: "agentlib.dev/v1alpha1",
+          kind: "Agent",
           metadata: {
-            namespace: "raul"
+            namespace: "Raul",
+            name: "code-reviewer",
+            version: "0.3.0",
+            title: "Code Reviewer",
+            description: "Reviews pull requests for correctness and maintainability."
+          },
+          spec: {
+            summary: "Reviews pull requests with a focus on correctness and maintainability.",
+            inputs: [],
+            outputs: [],
+            tools: []
           }
         }
       })
@@ -346,6 +374,59 @@ test("POST /api/v1/publish returns 400 for an invalid payload", async () => {
     error: {
       code: "invalid_publish_request",
       message: "Publish request is invalid"
+    }
+  });
+});
+
+test("POST /api/v1/publish returns 400 for a schema-invalid manifest", async () => {
+  const app = createApp({
+    listAgents: async () => ({
+      items: [],
+      nextCursor: null
+    }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    }
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/publish", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        manifest: {
+          apiVersion: "agentlib.dev/v1alpha1",
+          kind: "Agent",
+          metadata: {
+            namespace: "Raul",
+            name: "code-reviewer",
+            version: "0.3.0",
+            title: "Code Reviewer",
+            description: "Reviews pull requests for correctness and maintainability."
+          },
+          spec: {
+            summary: "Reviews pull requests with a focus on correctness and maintainability.",
+            inputs: [],
+            outputs: [],
+            tools: []
+          }
+        },
+        readme: "# Code Reviewer\n",
+        artifacts: []
+      })
+    })
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), {
+    error: {
+      code: "invalid_manifest",
+      message: "Manifest failed schema validation"
     }
   });
 });
