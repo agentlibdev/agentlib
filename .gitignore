@@ -1,6 +1,7 @@
 .worktrees/
 node_modules/
 dist/
+.test-dist/
 .wrangler/
 .dev.vars
 npm-debug.log*

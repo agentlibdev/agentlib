@@ -1,0 +1,6 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "agentlib-api",
+  "main": "apps/api/src/index.ts",
+  "compatibility_date": "2026-03-11"
+}
