@@ -64,6 +64,7 @@ To exercise the HTTP publish path against local D1:
 ```bash
 npm run dev:api:local
 npm run publish:sample:local
+npm run publish:example:local -- ../agent-examples/.worktrees/examples-catalog/examples/raul/docs-writer
 npm run d1:list:local
 npm run d1:list:artifacts:local
 ```
