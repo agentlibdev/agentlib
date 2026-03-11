@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "build:test": "tsc -p tsconfig.test.json",
-    "test": "npm run build:test && node --test .test-dist/test/*.test.js",
+    "test": "npm run build:test && node --test .test-dist/apps/api/test/*.test.js",
     "typecheck": "tsc --noEmit",
     "dev:api": "wrangler dev"
   },
