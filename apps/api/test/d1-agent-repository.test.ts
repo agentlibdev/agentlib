@@ -8,7 +8,11 @@ type StatementResult<Row> = {
 };
 
 class FakePreparedStatement<Row> {
-  constructor(private readonly result: StatementResult<Row>) {}
+  constructor(
+    private readonly sql: string,
+    private readonly result: StatementResult<Row>,
+    private readonly runs: string[]
+  ) {}
 
   bind(): FakePreparedStatement<Row> {
     return this;
@@ -19,11 +23,14 @@ class FakePreparedStatement<Row> {
   }
 
   async run(): Promise<{ success: true }> {
+    this.runs.push(this.sql);
     return { success: true };
   }
 }
 
 class FakeDatabase {
+  readonly runs: string[] = [];
+
   constructor(
     private readonly handlers: Record<string, StatementResult<Record<string, unknown>>>
   ) {}
@@ -34,7 +41,7 @@ class FakeDatabase {
       throw new Error(`Unexpected SQL: ${sql}`);
     }
 
-    return new FakePreparedStatement(entry);
+    return new FakePreparedStatement(sql, entry, this.runs);
   }
 }
 
@@ -186,8 +193,7 @@ test("D1AgentRepository returns one version detail row", async () => {
 });
 
 test("D1AgentRepository publishes a new version for a new agent", async () => {
-  const repository = new D1AgentRepository(
-    new FakeDatabase({
+  const database = new FakeDatabase({
       "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description FROM agent_list_view ORDER BY namespace, name LIMIT 50": {
         results: []
       },
@@ -211,9 +217,12 @@ test("D1AgentRepository publishes a new version for a new agent", async () => {
       },
       "INSERT INTO agent_versions (id, agent_id, version, title, description, license, manifest_json, readme_path, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)": {
         results: []
+      },
+      "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)": {
+        results: []
       }
-    }) as unknown as D1Database
-  );
+    });
+  const repository = new D1AgentRepository(database as unknown as D1Database);
 
   const result = await repository.publishAgentVersion({
     manifest: {
@@ -227,7 +236,13 @@ test("D1AgentRepository publishes a new version for a new agent", async () => {
       }
     },
     readme: "# Code Reviewer\n",
-    artifacts: []
+    artifacts: [
+      {
+        path: "agent.yaml",
+        mediaType: "application/yaml",
+        content: "Y29udGVudA=="
+      }
+    ]
   });
 
   assert.deepEqual(result, {
@@ -235,6 +250,11 @@ test("D1AgentRepository publishes a new version for a new agent", async () => {
     name: "code-reviewer",
     version: "0.3.0"
   });
+  assert.ok(
+    database.runs.includes(
+      "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
+    )
+  );
 });
 
 test("D1AgentRepository rejects publishing an existing version", async () => {
@@ -262,6 +282,9 @@ test("D1AgentRepository rejects publishing an existing version", async () => {
         results: []
       },
       "INSERT INTO agent_versions (id, agent_id, version, title, description, license, manifest_json, readme_path, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)": {
+        results: []
+      },
+      "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)": {
         results: []
       }
     }) as unknown as D1Database
