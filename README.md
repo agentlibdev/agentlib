@@ -44,3 +44,14 @@ The current API behavior supports two repository modes:
 - D1-backed repository implementation for local schema/query wiring
 
 The next step is executing these migrations against a real local D1 database and replacing bootstrap seed behavior with actual persisted data.
+
+## Local D1 workflow
+
+Use the local scripts from the repo root:
+
+```bash
+npm run d1:reset:local
+npm run d1:list:local
+```
+
+This creates a local D1 state directory, applies the initial schema, seeds providers, and inserts sample agent/version records for local development.
