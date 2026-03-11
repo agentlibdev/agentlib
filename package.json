@@ -1,0 +1,23 @@
+{
+  "name": "@agentlibdev/agentlib",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare-first public registry for portable AI agents",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build:test": "tsc -p tsconfig.test.json",
+    "test": "npm run build:test && node --test .test-dist/test/*.test.js",
+    "typecheck": "tsc --noEmit",
+    "dev:api": "wrangler dev"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "@cloudflare/workers-types": "^4.20260305.0",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.38.0"
+  }
+}
