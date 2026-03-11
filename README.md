@@ -12,6 +12,9 @@ This worktree bootstraps the first registry slice:
 - explicit JSON 404 response
 - `GET /api/v1/agents`
 - `GET /api/v1/agents/:namespace/:name`
+- `GET /api/v1/agents/:namespace/:name/versions`
+- `GET /api/v1/agents/:namespace/:name/versions/:version`
+- `POST /api/v1/publish`
 - initial D1 migration and provider seed SQL
 
 More storage and publish behavior will land in later steps once the public contracts are settled.
@@ -55,3 +58,24 @@ npm run d1:list:local
 ```
 
 This creates a local D1 state directory, applies the initial schema, seeds providers, and inserts sample agent/version records for local development.
+
+## Publish alpha
+
+The current alpha publish route accepts JSON with:
+
+- `manifest.metadata.namespace`
+- `manifest.metadata.name`
+- `manifest.metadata.version`
+- `manifest.metadata.title`
+- `manifest.metadata.description`
+- optional `manifest.metadata.license`
+- `readme`
+- `artifacts[]`
+
+Current behavior:
+
+- returns `201` for a new version
+- returns `409` if `namespace/name@version` already exists
+- returns `400` for invalid payloads
+
+Artifact persistence in R2 is not implemented yet. The current write path focuses on metadata persistence and version immutability.

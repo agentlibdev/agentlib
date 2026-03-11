@@ -1,4 +1,11 @@
-import type { AgentDetail, AgentListItem, AgentVersionRecord } from "../../../packages/core/src/agent-record.js";
+import type {
+  AgentDetail,
+  AgentListItem,
+  AgentVersionDetail,
+  AgentVersionRecord,
+  PublishRequest,
+  PublishResult
+} from "../../../packages/core/src/agent-record.js";
 import type { AgentRepository } from "../../../packages/core/src/agent-repository.js";
 
 const LIST_AGENTS_SQL =
@@ -6,6 +13,24 @@ const LIST_AGENTS_SQL =
 
 const GET_AGENT_DETAIL_SQL =
   "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC";
+
+const GET_AGENT_VERSION_DETAIL_SQL =
+  "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1";
+
+const CHECK_AGENT_SQL =
+  "SELECT id, namespace, name FROM agents WHERE namespace = ?1 AND name = ?2 LIMIT 1";
+
+const CHECK_AGENT_VERSION_SQL =
+  "SELECT av.id FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1";
+
+const INSERT_AGENT_SQL =
+  "INSERT INTO agents (id, namespace, name, latest_version, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)";
+
+const UPDATE_AGENT_LATEST_SQL =
+  "UPDATE agents SET latest_version = ?1, updated_at = ?2 WHERE id = ?3";
+
+const INSERT_AGENT_VERSION_SQL =
+  "INSERT INTO agent_versions (id, agent_id, version, title, description, license, manifest_json, readme_path, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)";
 
 type AgentListRow = AgentListItem;
 
@@ -18,6 +43,27 @@ type AgentDetailRow = {
   description: string;
   publishedAt: string;
 };
+
+type AgentVersionDetailRow = {
+  namespace: string;
+  name: string;
+  version: string;
+  title: string;
+  description: string;
+  license: string | null;
+  manifestJson: string;
+  publishedAt: string;
+};
+
+type AgentRow = {
+  id: string;
+  namespace: string;
+  name: string;
+};
+
+function createId(prefix: string, parts: string[]): string {
+  return [prefix, ...parts].join("_").replace(/[^a-zA-Z0-9_]/g, "_");
+}
 
 export class D1AgentRepository implements AgentRepository {
   constructor(private readonly db: D1Database) {}
@@ -56,9 +102,101 @@ export class D1AgentRepository implements AgentRepository {
       versions
     };
   }
+
+  async listAgentVersions(namespace: string, name: string): Promise<AgentVersionRecord[] | null> {
+    const detail = await this.getAgentDetail(namespace, name);
+    return detail ? detail.versions : null;
+  }
+
+  async getAgentVersionDetail(
+    namespace: string,
+    name: string,
+    version: string
+  ): Promise<AgentVersionDetail | null> {
+    const result = await this.db
+      .prepare(GET_AGENT_VERSION_DETAIL_SQL)
+      .bind(namespace, name, version)
+      .all<AgentVersionDetailRow>();
+
+    const row = result.results[0];
+    if (!row) {
+      return null;
+    }
+
+    return {
+      namespace: row.namespace,
+      name: row.name,
+      version: row.version,
+      title: row.title,
+      description: row.description,
+      license: row.license,
+      manifestJson: row.manifestJson,
+      publishedAt: row.publishedAt
+    };
+  }
+
+  async publishAgentVersion(payload: PublishRequest): Promise<PublishResult> {
+    const metadata = payload.manifest.metadata;
+    const now = new Date().toISOString();
+
+    const existingVersion = await this.db
+      .prepare(CHECK_AGENT_VERSION_SQL)
+      .bind(metadata.namespace, metadata.name, metadata.version)
+      .all<{ id: string }>();
+
+    if (existingVersion.results.length > 0) {
+      throw new Error("version_exists");
+    }
+
+    const existingAgent = await this.db
+      .prepare(CHECK_AGENT_SQL)
+      .bind(metadata.namespace, metadata.name)
+      .all<AgentRow>();
+
+    const agentId =
+      existingAgent.results[0]?.id ??
+      createId("agent", [metadata.namespace, metadata.name]);
+
+    if (existingAgent.results.length === 0) {
+      await this.db
+        .prepare(INSERT_AGENT_SQL)
+        .bind(agentId, metadata.namespace, metadata.name, metadata.version, now, now)
+        .run();
+    } else {
+      await this.db.prepare(UPDATE_AGENT_LATEST_SQL).bind(metadata.version, now, agentId).run();
+    }
+
+    const versionId = createId("agent_version", [
+      metadata.namespace,
+      metadata.name,
+      metadata.version
+    ]);
+
+    await this.db
+      .prepare(INSERT_AGENT_VERSION_SQL)
+      .bind(
+        versionId,
+        agentId,
+        metadata.version,
+        metadata.title,
+        metadata.description,
+        metadata.license ?? null,
+        JSON.stringify(payload.manifest),
+        "README.md",
+        now
+      )
+      .run();
+
+    return {
+      namespace: metadata.namespace,
+      name: metadata.name,
+      version: metadata.version
+    };
+  }
 }
 
 export const d1Queries = {
   LIST_AGENTS_SQL,
-  GET_AGENT_DETAIL_SQL
+  GET_AGENT_DETAIL_SQL,
+  GET_AGENT_VERSION_DETAIL_SQL
 };

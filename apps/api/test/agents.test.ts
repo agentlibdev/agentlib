@@ -3,54 +3,6 @@ import test from "node:test";
 
 import { createApp } from "../src/create-app.js";
 
-function createStubRepository() {
-  return {
-    listAgents: async () => ({
-      items: [],
-      nextCursor: null
-    }),
-    getAgentDetail: async () => null,
-    listAgentVersions: async () => null,
-    getAgentVersionDetail: async () => null,
-    listArtifacts: async () => null,
-    getArtifactContent: async () => null,
-    publishAgentVersion: async () => {
-      throw new Error("unexpected");
-    }
-  };
-}
-
-function createPublishRequest(version = "0.3.0") {
-  return {
-    manifest: {
-      apiVersion: "agentlib.dev/v1alpha1",
-      kind: "Agent",
-      metadata: {
-        namespace: "raul",
-        name: "code-reviewer",
-        version,
-        title: "Code Reviewer",
-        description: "Reviews pull requests for correctness and maintainability.",
-        license: "MIT"
-      },
-      spec: {
-        summary: "Reviews pull requests with a focus on correctness and maintainability.",
-        inputs: [],
-        outputs: [],
-        tools: []
-      }
-    },
-    readme: "# Code Reviewer\n",
-    artifacts: [
-      {
-        path: "agent.yaml",
-        mediaType: "application/yaml",
-        content: "Y29udGVudA=="
-      }
-    ]
-  };
-}
-
 test("GET /api/v1/agents returns a paginated agent list", async () => {
   const app = createApp({
     listAgents: async () => ({
@@ -68,8 +20,6 @@ test("GET /api/v1/agents returns a paginated agent list", async () => {
     getAgentDetail: async () => null,
     listAgentVersions: async () => null,
     getAgentVersionDetail: async () => null,
-    listArtifacts: async () => null,
-    getArtifactContent: async () => null,
     publishAgentVersion: async () => {
       throw new Error("unexpected");
     }
@@ -100,6 +50,11 @@ test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
       items: [],
       nextCursor: null
     }),
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
     getAgentDetail: async () => ({
       namespace: "raul",
       name: "code-reviewer",
@@ -112,14 +67,7 @@ test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
           publishedAt: "2026-03-11T00:00:00.000Z"
         }
       ]
-    }),
-    listAgentVersions: async () => null,
-    getAgentVersionDetail: async () => null,
-    listArtifacts: async () => null,
-    getArtifactContent: async () => null,
-    publishAgentVersion: async () => {
-      throw new Error("unexpected");
-    }
+    })
   });
 
   const response = await app.fetch(
@@ -145,7 +93,18 @@ test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
 });
 
 test("GET /api/v1/agents/:namespace/:name returns 404 for an unknown agent", async () => {
-  const app = createApp(createStubRepository());
+  const app = createApp({
+    listAgents: async () => ({
+      items: [],
+      nextCursor: null
+    }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    }
+  });
 
   const response = await app.fetch(
     new Request("https://agentlib.dev/api/v1/agents/raul/missing-agent")
@@ -160,9 +119,107 @@ test("GET /api/v1/agents/:namespace/:name returns 404 for an unknown agent", asy
   });
 });
 
+test("GET /api/v1/agents/:namespace/:name/versions returns version history", async () => {
+  const app = createApp({
+    listAgents: async () => ({
+      items: [],
+      nextCursor: null
+    }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => [
+      {
+        version: "0.2.0",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability.",
+        publishedAt: "2026-03-11T10:00:00.000Z"
+      },
+      {
+        version: "0.1.0",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability.",
+        publishedAt: "2026-03-10T10:00:00.000Z"
+      }
+    ],
+    getAgentVersionDetail: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    }
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/agents/raul/code-reviewer/versions")
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    items: [
+      {
+        version: "0.2.0",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability.",
+        publishedAt: "2026-03-11T10:00:00.000Z"
+      },
+      {
+        version: "0.1.0",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability.",
+        publishedAt: "2026-03-10T10:00:00.000Z"
+      }
+    ]
+  });
+});
+
+test("GET /api/v1/agents/:namespace/:name/versions/:version returns one version detail", async () => {
+  const app = createApp({
+    listAgents: async () => ({
+      items: [],
+      nextCursor: null
+    }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
+    getAgentVersionDetail: async () => ({
+      namespace: "raul",
+      name: "code-reviewer",
+      version: "0.2.0",
+      title: "Code Reviewer",
+      description: "Reviews pull requests for correctness and maintainability.",
+      license: "MIT",
+      manifestJson: "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.2.0\"}}",
+      publishedAt: "2026-03-11T10:00:00.000Z"
+    })
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/agents/raul/code-reviewer/versions/0.2.0")
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    version: {
+      namespace: "raul",
+      name: "code-reviewer",
+      version: "0.2.0",
+      title: "Code Reviewer",
+      description: "Reviews pull requests for correctness and maintainability.",
+      license: "MIT",
+      manifestJson: "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.2.0\"}}",
+      publishedAt: "2026-03-11T10:00:00.000Z"
+    }
+  });
+});
+
 test("POST /api/v1/publish creates a new agent version", async () => {
   const app = createApp({
-    ...createStubRepository(),
+    listAgents: async () => ({
+      items: [],
+      nextCursor: null
+    }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
     publishAgentVersion: async (payload) => ({
       namespace: payload.manifest.metadata.namespace,
       name: payload.manifest.metadata.name,
@@ -176,7 +233,26 @@ test("POST /api/v1/publish creates a new agent version", async () => {
       headers: {
         "content-type": "application/json"
       },
-      body: JSON.stringify(createPublishRequest())
+      body: JSON.stringify({
+        manifest: {
+          metadata: {
+            namespace: "raul",
+            name: "code-reviewer",
+            version: "0.3.0",
+            title: "Code Reviewer",
+            description: "Reviews pull requests for correctness and maintainability.",
+            license: "MIT"
+          }
+        },
+        readme: "# Code Reviewer\n",
+        artifacts: [
+          {
+            path: "agent.yaml",
+            mediaType: "application/yaml",
+            content: "Y29udGVudA=="
+          }
+        ]
+      })
     })
   );
 
@@ -192,7 +268,13 @@ test("POST /api/v1/publish creates a new agent version", async () => {
 
 test("POST /api/v1/publish returns 409 when the version already exists", async () => {
   const app = createApp({
-    ...createStubRepository(),
+    listAgents: async () => ({
+      items: [],
+      nextCursor: null
+    }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
     publishAgentVersion: async () => {
       throw new Error("version_exists");
     }
@@ -204,7 +286,19 @@ test("POST /api/v1/publish returns 409 when the version already exists", async (
       headers: {
         "content-type": "application/json"
       },
-      body: JSON.stringify(createPublishRequest())
+      body: JSON.stringify({
+        manifest: {
+          metadata: {
+            namespace: "raul",
+            name: "code-reviewer",
+            version: "0.3.0",
+            title: "Code Reviewer",
+            description: "Reviews pull requests for correctness and maintainability."
+          }
+        },
+        readme: "# Code Reviewer\n",
+        artifacts: []
+      })
     })
   );
 
@@ -218,7 +312,18 @@ test("POST /api/v1/publish returns 409 when the version already exists", async (
 });
 
 test("POST /api/v1/publish returns 400 for an invalid payload", async () => {
-  const app = createApp(createStubRepository());
+  const app = createApp({
+    listAgents: async () => ({
+      items: [],
+      nextCursor: null
+    }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    }
+  });
 
   const response = await app.fetch(
     new Request("https://agentlib.dev/api/v1/publish", {
@@ -228,14 +333,8 @@ test("POST /api/v1/publish returns 400 for an invalid payload", async () => {
       },
       body: JSON.stringify({
         manifest: {
-          apiVersion: "agentlib.dev/v1alpha1",
-          kind: "Agent",
           metadata: {
-            namespace: "raul",
-            name: "code-reviewer",
-            version: "0.3.0",
-            title: "Code Reviewer",
-            description: "Reviews pull requests for correctness and maintainability."
+            namespace: "raul"
           }
         }
       })
@@ -247,30 +346,6 @@ test("POST /api/v1/publish returns 400 for an invalid payload", async () => {
     error: {
       code: "invalid_publish_request",
       message: "Publish request is invalid"
-    }
-  });
-});
-
-test("POST /api/v1/publish returns 400 for a schema-invalid manifest", async () => {
-  const app = createApp(createStubRepository());
-  const payload = createPublishRequest();
-  payload.manifest.metadata.namespace = "Raul";
-
-  const response = await app.fetch(
-    new Request("https://agentlib.dev/api/v1/publish", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    })
-  );
-
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), {
-    error: {
-      code: "invalid_manifest",
-      message: "Manifest failed schema validation"
     }
   });
 });

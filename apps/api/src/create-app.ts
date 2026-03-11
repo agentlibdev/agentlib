@@ -1,4 +1,5 @@
 import type { AgentRepository } from "../../../packages/core/src/agent-repository.js";
+import type { PublishRequest } from "../../../packages/core/src/agent-record.js";
 import type { Env } from "./env.js";
 
 export type App = {
@@ -13,6 +14,25 @@ function json(body: unknown, init: ResponseInit = {}): Response {
       ...(init.headers ?? {})
     }
   });
+}
+
+function isValidPublishRequest(value: unknown): value is PublishRequest {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as PublishRequest;
+  const metadata = candidate.manifest?.metadata;
+
+  return Boolean(
+    metadata?.namespace &&
+      metadata?.name &&
+      metadata?.version &&
+      metadata?.title &&
+      metadata?.description &&
+      typeof candidate.readme === "string" &&
+      Array.isArray(candidate.artifacts)
+  );
 }
 
 export function createApp(repository: AgentRepository): App {
@@ -63,6 +83,89 @@ export function createApp(repository: AgentRepository): App {
           },
           versions: detail.versions
         });
+      }
+
+      const versionsMatch = url.pathname.match(/^\/api\/v1\/agents\/([^/]+)\/([^/]+)\/versions$/);
+      if (request.method === "GET" && versionsMatch) {
+        const [, namespace, name] = versionsMatch;
+        const versions = await repository.listAgentVersions(namespace, name);
+
+        if (!versions) {
+          return json(
+            {
+              error: {
+                code: "agent_not_found",
+                message: "Agent not found"
+              }
+            },
+            { status: 404 }
+          );
+        }
+
+        return json({ items: versions });
+      }
+
+      const versionDetailMatch = url.pathname.match(
+        /^\/api\/v1\/agents\/([^/]+)\/([^/]+)\/versions\/([^/]+)$/
+      );
+      if (request.method === "GET" && versionDetailMatch) {
+        const [, namespace, name, version] = versionDetailMatch;
+        const detail = await repository.getAgentVersionDetail(namespace, name, version);
+
+        if (!detail) {
+          return json(
+            {
+              error: {
+                code: "agent_version_not_found",
+                message: "Agent version not found"
+              }
+            },
+            { status: 404 }
+          );
+        }
+
+        return json({ version: detail });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/publish") {
+        const payload = await request.json();
+
+        if (!isValidPublishRequest(payload)) {
+          return json(
+            {
+              error: {
+                code: "invalid_publish_request",
+                message: "Publish request is invalid"
+              }
+            },
+            { status: 400 }
+          );
+        }
+
+        try {
+          const result = await repository.publishAgentVersion(payload);
+
+          return json(
+            {
+              agent: result
+            },
+            { status: 201 }
+          );
+        } catch (error) {
+          if (error instanceof Error && error.message === "version_exists") {
+            return json(
+              {
+                error: {
+                  code: "version_exists",
+                  message: "Agent version already exists"
+                }
+              },
+              { status: 409 }
+            );
+          }
+
+          throw error;
+        }
       }
 
       return json(
