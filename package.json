@@ -12,6 +12,11 @@
     "build:test": "tsc -p tsconfig.test.json",
     "test": "npm run build:test && node --test .test-dist/apps/api/test/*.test.js",
     "typecheck": "tsc --noEmit",
+    "d1:migrate:local": "wrangler d1 execute DB --local --persist-to .wrangler/state --file migrations/0001_initial.sql --yes",
+    "d1:seed:providers:local": "wrangler d1 execute DB --local --persist-to .wrangler/state --file migrations/seed/0001_providers.sql --yes",
+    "d1:seed:sample:local": "wrangler d1 execute DB --local --persist-to .wrangler/state --file migrations/seed/0002_sample_agents.sql --yes",
+    "d1:reset:local": "rm -rf .wrangler/state && npm run d1:migrate:local && npm run d1:seed:providers:local && npm run d1:seed:sample:local",
+    "d1:list:local": "wrangler d1 execute DB --local --persist-to .wrangler/state --command \"SELECT namespace, name, latest_version FROM agents ORDER BY namespace, name;\" --json",
     "dev:api": "wrangler dev"
   },
   "devDependencies": {
