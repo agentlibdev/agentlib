@@ -17,7 +17,12 @@ test("GET /api/v1/agents returns a paginated agent list", async () => {
       ],
       nextCursor: null
     }),
-    getAgentDetail: async () => null
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    }
   });
 
   const response = await app.fetch(new Request("https://agentlib.dev/api/v1/agents"));
@@ -45,6 +50,11 @@ test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
       items: [],
       nextCursor: null
     }),
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
     getAgentDetail: async () => ({
       namespace: "raul",
       name: "code-reviewer",
@@ -88,7 +98,12 @@ test("GET /api/v1/agents/:namespace/:name returns 404 for an unknown agent", asy
       items: [],
       nextCursor: null
     }),
-    getAgentDetail: async () => null
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    }
   });
 
   const response = await app.fetch(
@@ -100,6 +115,237 @@ test("GET /api/v1/agents/:namespace/:name returns 404 for an unknown agent", asy
     error: {
       code: "agent_not_found",
       message: "Agent not found"
+    }
+  });
+});
+
+test("GET /api/v1/agents/:namespace/:name/versions returns version history", async () => {
+  const app = createApp({
+    listAgents: async () => ({
+      items: [],
+      nextCursor: null
+    }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => [
+      {
+        version: "0.2.0",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability.",
+        publishedAt: "2026-03-11T10:00:00.000Z"
+      },
+      {
+        version: "0.1.0",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability.",
+        publishedAt: "2026-03-10T10:00:00.000Z"
+      }
+    ],
+    getAgentVersionDetail: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    }
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/agents/raul/code-reviewer/versions")
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    items: [
+      {
+        version: "0.2.0",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability.",
+        publishedAt: "2026-03-11T10:00:00.000Z"
+      },
+      {
+        version: "0.1.0",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability.",
+        publishedAt: "2026-03-10T10:00:00.000Z"
+      }
+    ]
+  });
+});
+
+test("GET /api/v1/agents/:namespace/:name/versions/:version returns one version detail", async () => {
+  const app = createApp({
+    listAgents: async () => ({
+      items: [],
+      nextCursor: null
+    }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
+    getAgentVersionDetail: async () => ({
+      namespace: "raul",
+      name: "code-reviewer",
+      version: "0.2.0",
+      title: "Code Reviewer",
+      description: "Reviews pull requests for correctness and maintainability.",
+      license: "MIT",
+      manifestJson: "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.2.0\"}}",
+      publishedAt: "2026-03-11T10:00:00.000Z"
+    })
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/agents/raul/code-reviewer/versions/0.2.0")
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    version: {
+      namespace: "raul",
+      name: "code-reviewer",
+      version: "0.2.0",
+      title: "Code Reviewer",
+      description: "Reviews pull requests for correctness and maintainability.",
+      license: "MIT",
+      manifestJson: "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.2.0\"}}",
+      publishedAt: "2026-03-11T10:00:00.000Z"
+    }
+  });
+});
+
+test("POST /api/v1/publish creates a new agent version", async () => {
+  const app = createApp({
+    listAgents: async () => ({
+      items: [],
+      nextCursor: null
+    }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    publishAgentVersion: async (payload) => ({
+      namespace: payload.manifest.metadata.namespace,
+      name: payload.manifest.metadata.name,
+      version: payload.manifest.metadata.version
+    })
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/publish", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        manifest: {
+          metadata: {
+            namespace: "raul",
+            name: "code-reviewer",
+            version: "0.3.0",
+            title: "Code Reviewer",
+            description: "Reviews pull requests for correctness and maintainability.",
+            license: "MIT"
+          }
+        },
+        readme: "# Code Reviewer\n",
+        artifacts: [
+          {
+            path: "agent.yaml",
+            mediaType: "application/yaml",
+            content: "Y29udGVudA=="
+          }
+        ]
+      })
+    })
+  );
+
+  assert.equal(response.status, 201);
+  assert.deepEqual(await response.json(), {
+    agent: {
+      namespace: "raul",
+      name: "code-reviewer",
+      version: "0.3.0"
+    }
+  });
+});
+
+test("POST /api/v1/publish returns 409 when the version already exists", async () => {
+  const app = createApp({
+    listAgents: async () => ({
+      items: [],
+      nextCursor: null
+    }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("version_exists");
+    }
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/publish", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        manifest: {
+          metadata: {
+            namespace: "raul",
+            name: "code-reviewer",
+            version: "0.3.0",
+            title: "Code Reviewer",
+            description: "Reviews pull requests for correctness and maintainability."
+          }
+        },
+        readme: "# Code Reviewer\n",
+        artifacts: []
+      })
+    })
+  );
+
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), {
+    error: {
+      code: "version_exists",
+      message: "Agent version already exists"
+    }
+  });
+});
+
+test("POST /api/v1/publish returns 400 for an invalid payload", async () => {
+  const app = createApp({
+    listAgents: async () => ({
+      items: [],
+      nextCursor: null
+    }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    }
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/publish", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        manifest: {
+          metadata: {
+            namespace: "raul"
+          }
+        }
+      })
+    })
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), {
+    error: {
+      code: "invalid_publish_request",
+      message: "Publish request is invalid"
     }
   });
 });
