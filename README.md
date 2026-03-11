@@ -59,6 +59,15 @@ npm run d1:list:local
 
 This creates a local D1 state directory, applies the initial schema, seeds providers, and inserts sample agent/version records for local development.
 
+To exercise the HTTP publish path against local D1:
+
+```bash
+npm run dev:api:local
+npm run publish:sample:local
+npm run d1:list:local
+npm run d1:list:artifacts:local
+```
+
 ## Publish alpha
 
 The current alpha publish route accepts JSON with:

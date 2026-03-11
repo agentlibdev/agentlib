@@ -32,6 +32,9 @@ const UPDATE_AGENT_LATEST_SQL =
 const INSERT_AGENT_VERSION_SQL =
   "INSERT INTO agent_versions (id, agent_id, version, title, description, license, manifest_json, readme_path, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)";
 
+const INSERT_ARTIFACT_SQL =
+  "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)";
+
 type AgentListRow = AgentListItem;
 
 type AgentDetailRow = {
@@ -63,6 +66,22 @@ type AgentRow = {
 
 function createId(prefix: string, parts: string[]): string {
   return [prefix, ...parts].join("_").replace(/[^a-zA-Z0-9_]/g, "_");
+}
+
+function getBase64ByteLength(content: string): number {
+  const normalized = content.replace(/\s+/g, "");
+  const padding = normalized.endsWith("==") ? 2 : normalized.endsWith("=") ? 1 : 0;
+  return (normalized.length * 3) / 4 - padding;
+}
+
+function createArtifactMetadata(content: string) {
+  const sizeBytes = getBase64ByteLength(content);
+
+  return {
+    sizeBytes,
+    sha256: "pending",
+    r2Key: "pending"
+  };
 }
 
 export class D1AgentRepository implements AgentRepository {
@@ -187,6 +206,29 @@ export class D1AgentRepository implements AgentRepository {
       )
       .run();
 
+    for (const artifact of payload.artifacts) {
+      const artifactId = createId("artifact", [
+        metadata.namespace,
+        metadata.name,
+        metadata.version,
+        artifact.path
+      ]);
+      const artifactMeta = createArtifactMetadata(artifact.content);
+
+      await this.db
+        .prepare(INSERT_ARTIFACT_SQL)
+        .bind(
+          artifactId,
+          versionId,
+          artifact.path,
+          artifact.mediaType,
+          artifactMeta.sizeBytes,
+          artifactMeta.sha256,
+          artifactMeta.r2Key
+        )
+        .run();
+    }
+
     return {
       namespace: metadata.namespace,
       name: metadata.name,
@@ -198,5 +240,6 @@ export class D1AgentRepository implements AgentRepository {
 export const d1Queries = {
   LIST_AGENTS_SQL,
   GET_AGENT_DETAIL_SQL,
-  GET_AGENT_VERSION_DETAIL_SQL
+  GET_AGENT_VERSION_DETAIL_SQL,
+  INSERT_ARTIFACT_SQL
 };
