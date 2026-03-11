@@ -77,5 +77,8 @@ Current behavior:
 - returns `201` for a new version
 - returns `409` if `namespace/name@version` already exists
 - returns `400` for invalid payloads
+- returns `400` if the manifest fails AgentLib schema validation
 
 Artifact persistence in R2 is not implemented yet. The current write path focuses on metadata persistence and version immutability.
+
+Manifest validation is enforced in `agentlib` using a local schema copy sourced from `agent-schema`. Keeping those definitions aligned is now an explicit maintenance task until the schema is packaged for direct reuse.
