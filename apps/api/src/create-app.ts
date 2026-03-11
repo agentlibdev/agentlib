@@ -1,4 +1,5 @@
 import type { AgentRepository } from "../../../packages/core/src/agent-repository.js";
+import type { Env } from "./env.js";
 
 export type App = {
   fetch(request: Request): Promise<Response>;
@@ -73,6 +74,17 @@ export function createApp(repository: AgentRepository): App {
         },
         { status: 404 }
       );
+    }
+  };
+}
+
+export function createWorkerApp(env?: Env): ExportedHandler {
+  return {
+    async fetch(request): Promise<Response> {
+      const { createRepository } = await import("./create-repository.js");
+      const repository = createRepository(env);
+      const app = createApp(repository);
+      return app.fetch(request);
     }
   };
 }
