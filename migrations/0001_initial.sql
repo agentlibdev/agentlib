@@ -48,3 +48,15 @@ CREATE TABLE source_repositories (
   UNIQUE(provider_id, external_id),
   FOREIGN KEY (provider_id) REFERENCES providers(id)
 );
+
+CREATE VIEW agent_list_view AS
+SELECT
+  a.namespace,
+  a.name,
+  a.latest_version,
+  av.title AS latest_title,
+  av.description AS latest_description
+FROM agents a
+JOIN agent_versions av
+  ON av.agent_id = a.id
+ AND av.version = a.latest_version;

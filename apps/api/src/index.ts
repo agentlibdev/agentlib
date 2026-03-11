@@ -1,15 +1,14 @@
 import { createApp } from "./create-app.js";
-import { InMemoryAgentRepository } from "./in-memory-agent-repository.js";
-
-const app = createApp(new InMemoryAgentRepository());
+import { createRepository } from "./create-repository.js";
+import type { Env } from "./env.js";
 
 export async function handleRequest(request: Request): Promise<Response> {
-  return app.fetch(request);
+  return createApp(createRepository()).fetch(request);
 }
 
-const worker: ExportedHandler = {
-  async fetch(request): Promise<Response> {
-    return handleRequest(request);
+const worker: ExportedHandler<Env> = {
+  async fetch(request, env: Env): Promise<Response> {
+    return createApp(createRepository(env)).fetch(request);
   }
 };
 

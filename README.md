@@ -38,4 +38,9 @@ Provider seed data currently includes:
 - `gitlab`
 - `bitbucket`
 
-The current API behavior is wired through an in-memory repository for testability. Real D1 query integration is the next step.
+The current API behavior supports two repository modes:
+
+- in-memory seed repository for bootstrap and pure route tests
+- D1-backed repository implementation for local schema/query wiring
+
+The next step is executing these migrations against a real local D1 database and replacing bootstrap seed behavior with actual persisted data.
