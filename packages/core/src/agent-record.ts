@@ -64,3 +64,15 @@ export type PublishResult = {
   name: string;
   version: string;
 };
+
+export type ArtifactRecord = {
+  path: string;
+  mediaType: string;
+  sizeBytes: number;
+};
+
+export type ArtifactContent = {
+  path: string;
+  mediaType: string;
+  content: string;
+};

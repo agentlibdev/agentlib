@@ -30,6 +30,7 @@ CREATE TABLE artifacts (
   size_bytes INTEGER NOT NULL,
   sha256 TEXT NOT NULL,
   r2_key TEXT NOT NULL,
+  content_base64 TEXT NOT NULL DEFAULT '',
   FOREIGN KEY (agent_version_id) REFERENCES agent_versions(id)
 );
 

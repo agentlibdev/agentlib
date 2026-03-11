@@ -3,6 +3,8 @@ import type {
   AgentListItem,
   AgentVersionDetail,
   AgentVersionRecord,
+  ArtifactContent,
+  ArtifactRecord,
   PublishRequest,
   PublishResult
 } from "../../../packages/core/src/agent-record.js";
@@ -33,7 +35,13 @@ const INSERT_AGENT_VERSION_SQL =
   "INSERT INTO agent_versions (id, agent_id, version, title, description, license, manifest_json, readme_path, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)";
 
 const INSERT_ARTIFACT_SQL =
-  "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)";
+  "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key, content_base64) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)";
+
+const LIST_ARTIFACTS_SQL =
+  "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path";
+
+const GET_ARTIFACT_SQL =
+  "SELECT art.path, art.media_type AS mediaType, art.content_base64 AS contentBase64 FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1";
 
 type AgentListRow = AgentListItem;
 
@@ -56,6 +64,14 @@ type AgentVersionDetailRow = {
   license: string | null;
   manifestJson: string;
   publishedAt: string;
+};
+
+type ArtifactRow = ArtifactRecord;
+
+type ArtifactContentRow = {
+  path: string;
+  mediaType: string;
+  contentBase64: string;
 };
 
 type AgentRow = {
@@ -82,6 +98,12 @@ function createArtifactMetadata(content: string) {
     sha256: "pending",
     r2Key: "pending"
   };
+}
+
+function decodeBase64Utf8(content: string): string {
+  const binary = atob(content);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
 export class D1AgentRepository implements AgentRepository {
@@ -151,6 +173,42 @@ export class D1AgentRepository implements AgentRepository {
       license: row.license,
       manifestJson: row.manifestJson,
       publishedAt: row.publishedAt
+    };
+  }
+
+  async listArtifacts(
+    namespace: string,
+    name: string,
+    version: string
+  ): Promise<ArtifactRecord[] | null> {
+    const result = await this.db
+      .prepare(LIST_ARTIFACTS_SQL)
+      .bind(namespace, name, version)
+      .all<ArtifactRow>();
+
+    return result.results.length > 0 ? result.results : null;
+  }
+
+  async getArtifactContent(
+    namespace: string,
+    name: string,
+    version: string,
+    path: string
+  ): Promise<ArtifactContent | null> {
+    const result = await this.db
+      .prepare(GET_ARTIFACT_SQL)
+      .bind(namespace, name, version, path)
+      .all<ArtifactContentRow>();
+
+    const row = result.results[0];
+    if (!row) {
+      return null;
+    }
+
+    return {
+      path: row.path,
+      mediaType: row.mediaType,
+      content: decodeBase64Utf8(row.contentBase64)
     };
   }
 
@@ -224,7 +282,8 @@ export class D1AgentRepository implements AgentRepository {
           artifact.mediaType,
           artifactMeta.sizeBytes,
           artifactMeta.sha256,
-          artifactMeta.r2Key
+          artifactMeta.r2Key,
+          artifact.content
         )
         .run();
     }
@@ -241,5 +300,7 @@ export const d1Queries = {
   LIST_AGENTS_SQL,
   GET_AGENT_DETAIL_SQL,
   GET_AGENT_VERSION_DETAIL_SQL,
-  INSERT_ARTIFACT_SQL
+  INSERT_ARTIFACT_SQL,
+  LIST_ARTIFACTS_SQL,
+  GET_ARTIFACT_SQL
 };

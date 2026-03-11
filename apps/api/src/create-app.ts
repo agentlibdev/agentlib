@@ -128,6 +128,59 @@ export function createApp(repository: AgentRepository): App {
         return json({ version: detail });
       }
 
+      const artifactsMatch = url.pathname.match(
+        /^\/api\/v1\/agents\/([^/]+)\/([^/]+)\/versions\/([^/]+)\/artifacts$/
+      );
+      if (request.method === "GET" && artifactsMatch) {
+        const [, namespace, name, version] = artifactsMatch;
+        const artifacts = await repository.listArtifacts(namespace, name, version);
+
+        if (!artifacts) {
+          return json(
+            {
+              error: {
+                code: "artifacts_not_found",
+                message: "Artifacts not found"
+              }
+            },
+            { status: 404 }
+          );
+        }
+
+        return json({ items: artifacts });
+      }
+
+      const artifactDownloadMatch = url.pathname.match(
+        /^\/api\/v1\/agents\/([^/]+)\/([^/]+)\/versions\/([^/]+)\/artifacts\/(.+)$/
+      );
+      if (request.method === "GET" && artifactDownloadMatch) {
+        const [, namespace, name, version, path] = artifactDownloadMatch;
+        const artifact = await repository.getArtifactContent(
+          namespace,
+          name,
+          version,
+          decodeURIComponent(path)
+        );
+
+        if (!artifact) {
+          return json(
+            {
+              error: {
+                code: "artifact_not_found",
+                message: "Artifact not found"
+              }
+            },
+            { status: 404 }
+          );
+        }
+
+        return new Response(artifact.content, {
+          headers: {
+            "content-type": artifact.mediaType
+          }
+        });
+      }
+
       if (request.method === "POST" && url.pathname === "/api/v1/publish") {
         const payload = await request.json();
 

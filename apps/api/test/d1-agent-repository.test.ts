@@ -61,6 +61,12 @@ test("D1AgentRepository maps list query rows into API list records", async () =>
       },
       "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC": {
         results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.content_base64 AS contentBase64 FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
+        results: []
       }
     }) as unknown as D1Database
   );
@@ -108,6 +114,12 @@ test("D1AgentRepository groups detail rows into one agent detail response", asyn
             publishedAt: "2026-03-10T10:00:00.000Z"
           }
         ]
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.content_base64 AS contentBase64 FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
+        results: []
       }
     }) as unknown as D1Database
   );
@@ -143,6 +155,12 @@ test("D1AgentRepository returns null when no detail rows exist", async () => {
       },
       "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC": {
         results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.content_base64 AS contentBase64 FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
+        results: []
       }
     }) as unknown as D1Database
   );
@@ -174,6 +192,12 @@ test("D1AgentRepository returns one version detail row", async () => {
             publishedAt: "2026-03-11T10:00:00.000Z"
           }
         ]
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.content_base64 AS contentBase64 FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
+        results: []
       }
     }) as unknown as D1Database
   );
@@ -203,6 +227,12 @@ test("D1AgentRepository publishes a new version for a new agent", async () => {
       "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1": {
         results: []
       },
+      "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.content_base64 AS contentBase64 FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
+        results: []
+      },
       "SELECT av.id FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1": {
         results: []
       },
@@ -218,7 +248,7 @@ test("D1AgentRepository publishes a new version for a new agent", async () => {
       "INSERT INTO agent_versions (id, agent_id, version, title, description, license, manifest_json, readme_path, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)": {
         results: []
       },
-      "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)": {
+      "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key, content_base64) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)": {
         results: []
       }
     });
@@ -252,7 +282,7 @@ test("D1AgentRepository publishes a new version for a new agent", async () => {
   });
   assert.ok(
     database.runs.includes(
-      "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
+      "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key, content_base64) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"
     )
   );
 });
@@ -267,6 +297,12 @@ test("D1AgentRepository rejects publishing an existing version", async () => {
         results: []
       },
       "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.content_base64 AS contentBase64 FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
         results: []
       },
       "SELECT av.id FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1": {
@@ -284,7 +320,7 @@ test("D1AgentRepository rejects publishing an existing version", async () => {
       "INSERT INTO agent_versions (id, agent_id, version, title, description, license, manifest_json, readme_path, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)": {
         results: []
       },
-      "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)": {
+      "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key, content_base64) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)": {
         results: []
       }
     }) as unknown as D1Database
@@ -306,4 +342,93 @@ test("D1AgentRepository rejects publishing an existing version", async () => {
     }),
     /version_exists/
   );
+});
+
+test("D1AgentRepository lists artifact metadata for a version", async () => {
+  const repository = new D1AgentRepository(
+    new FakeDatabase({
+      "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description FROM agent_list_view ORDER BY namespace, name LIMIT 50": {
+        results: []
+      },
+      "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC": {
+        results: []
+      },
+      "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path": {
+        results: [
+          {
+            path: "README.md",
+            mediaType: "text/markdown",
+            sizeBytes: 287
+          },
+          {
+            path: "agent.yaml",
+            mediaType: "application/yaml",
+            sizeBytes: 744
+          }
+        ]
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.content_base64 AS contentBase64 FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
+        results: []
+      }
+    }) as unknown as D1Database
+  );
+
+  const result = await repository.listArtifacts("raul", "docs-writer", "0.1.0");
+
+  assert.deepEqual(result, [
+    {
+      path: "README.md",
+      mediaType: "text/markdown",
+      sizeBytes: 287
+    },
+    {
+      path: "agent.yaml",
+      mediaType: "application/yaml",
+      sizeBytes: 744
+    }
+  ]);
+});
+
+test("D1AgentRepository returns decoded artifact content", async () => {
+  const repository = new D1AgentRepository(
+    new FakeDatabase({
+      "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description FROM agent_list_view ORDER BY namespace, name LIMIT 50": {
+        results: []
+      },
+      "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC": {
+        results: []
+      },
+      "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.content_base64 AS contentBase64 FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
+        results: [
+          {
+            path: "README.md",
+            mediaType: "text/markdown",
+            contentBase64: "IyBkb2NzLXdyaXRlcgo="
+          }
+        ]
+      }
+    }) as unknown as D1Database
+  );
+
+  const result = await repository.getArtifactContent(
+    "raul",
+    "docs-writer",
+    "0.1.0",
+    "README.md"
+  );
+
+  assert.deepEqual(result, {
+    path: "README.md",
+    mediaType: "text/markdown",
+    content: "# docs-writer\n"
+  });
 });

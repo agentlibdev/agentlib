@@ -14,6 +14,8 @@ This worktree bootstraps the first registry slice:
 - `GET /api/v1/agents/:namespace/:name`
 - `GET /api/v1/agents/:namespace/:name/versions`
 - `GET /api/v1/agents/:namespace/:name/versions/:version`
+- `GET /api/v1/agents/:namespace/:name/versions/:version/artifacts`
+- `GET /api/v1/agents/:namespace/:name/versions/:version/artifacts/:path`
 - `POST /api/v1/publish`
 - initial D1 migration and provider seed SQL
 
@@ -90,5 +92,6 @@ Current behavior:
 - returns `400` if the manifest fails AgentLib schema validation
 
 Artifact persistence in R2 is not implemented yet. The current write path focuses on metadata persistence and version immutability.
+Artifact download currently serves content from the local D1-backed store. This is an MVP bridge until binary artifact storage moves to R2.
 
 Manifest validation is enforced in `agentlib` using a local schema copy sourced from `agent-schema`. Keeping those definitions aligned is now an explicit maintenance task until the schema is packaged for direct reuse.

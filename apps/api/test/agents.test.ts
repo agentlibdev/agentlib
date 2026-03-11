@@ -20,6 +20,8 @@ test("GET /api/v1/agents returns a paginated agent list", async () => {
     getAgentDetail: async () => null,
     listAgentVersions: async () => null,
     getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
     publishAgentVersion: async () => {
       throw new Error("unexpected");
     }
@@ -52,6 +54,8 @@ test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
     }),
     listAgentVersions: async () => null,
     getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
     publishAgentVersion: async () => {
       throw new Error("unexpected");
     },
@@ -101,6 +105,8 @@ test("GET /api/v1/agents/:namespace/:name returns 404 for an unknown agent", asy
     getAgentDetail: async () => null,
     listAgentVersions: async () => null,
     getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
     publishAgentVersion: async () => {
       throw new Error("unexpected");
     }
@@ -141,6 +147,8 @@ test("GET /api/v1/agents/:namespace/:name/versions returns version history", asy
       }
     ],
     getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
     publishAgentVersion: async () => {
       throw new Error("unexpected");
     }
@@ -177,6 +185,8 @@ test("GET /api/v1/agents/:namespace/:name/versions/:version returns one version 
     }),
     getAgentDetail: async () => null,
     listAgentVersions: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
     publishAgentVersion: async () => {
       throw new Error("unexpected");
     },
@@ -220,6 +230,8 @@ test("POST /api/v1/publish creates a new agent version", async () => {
     getAgentDetail: async () => null,
     listAgentVersions: async () => null,
     getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
     publishAgentVersion: async (payload) => ({
       namespace: payload.manifest.metadata.namespace,
       name: payload.manifest.metadata.name,
@@ -283,6 +295,8 @@ test("POST /api/v1/publish returns 409 when the version already exists", async (
     getAgentDetail: async () => null,
     listAgentVersions: async () => null,
     getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
     publishAgentVersion: async () => {
       throw new Error("version_exists");
     }
@@ -336,6 +350,8 @@ test("POST /api/v1/publish returns 400 for an invalid payload", async () => {
     getAgentDetail: async () => null,
     listAgentVersions: async () => null,
     getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
     publishAgentVersion: async () => {
       throw new Error("unexpected");
     }
@@ -387,6 +403,8 @@ test("POST /api/v1/publish returns 400 for a schema-invalid manifest", async () 
     getAgentDetail: async () => null,
     listAgentVersions: async () => null,
     getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
     publishAgentVersion: async () => {
       throw new Error("unexpected");
     }
@@ -429,4 +447,77 @@ test("POST /api/v1/publish returns 400 for a schema-invalid manifest", async () 
       message: "Manifest failed schema validation"
     }
   });
+});
+
+test("GET /api/v1/agents/:namespace/:name/versions/:version/artifacts returns artifact metadata", async () => {
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => [
+      {
+        path: "agent.yaml",
+        mediaType: "application/yaml",
+        sizeBytes: 744
+      },
+      {
+        path: "README.md",
+        mediaType: "text/markdown",
+        sizeBytes: 287
+      }
+    ],
+    getArtifactContent: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    }
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/agents/raul/docs-writer/versions/0.1.0/artifacts")
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    items: [
+      {
+        path: "agent.yaml",
+        mediaType: "application/yaml",
+        sizeBytes: 744
+      },
+      {
+        path: "README.md",
+        mediaType: "text/markdown",
+        sizeBytes: 287
+      }
+    ]
+  });
+});
+
+test("GET /api/v1/agents/:namespace/:name/versions/:version/artifacts/:path downloads artifact content", async () => {
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => ({
+      path: "README.md",
+      mediaType: "text/markdown",
+      content: "# docs-writer\n"
+    }),
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    }
+  });
+
+  const response = await app.fetch(
+    new Request(
+      "https://agentlib.dev/api/v1/agents/raul/docs-writer/versions/0.1.0/artifacts/README.md"
+    )
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "text/markdown");
+  assert.equal(await response.text(), "# docs-writer\n");
 });
