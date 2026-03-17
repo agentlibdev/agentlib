@@ -21,6 +21,35 @@ This worktree bootstraps the first registry slice:
 
 More storage and publish behavior will land in later steps once the public contracts are settled.
 
+## Recap
+
+Completed so far:
+
+- Phase 2: monorepo skeleton, Worker entrypoint, health endpoint, read-only agent endpoints, initial D1 schema, provider seed data, and local D1 workflow
+- Phase 3: manual/local publish alpha, manifest validation against the local `agent-schema` copy, immutable version rejection, metadata persistence in D1
+- Phase 4: artifact listing and download routes, D1 metadata + R2 byte storage split, deterministic R2 key layout, and repository wiring for artifact retrieval
+
+Recent implementation sequence in `main`:
+
+- `feat: bootstrap api health endpoint`
+- `feat: add registry read models and routes`
+- `feat: wire local d1 repository abstraction`
+- `feat: add local d1 workflow and sample data`
+- `feat: add publish alpha and full read routes`
+- `feat: validate publish manifests against schema`
+- `feat: persist artifacts and verify local publish`
+- `feat: serve artifacts from r2 storage`
+
+## Next steps
+
+Recommended next slices:
+
+- replace checksum placeholders with a real SHA-256 digest during publish
+- exercise local R2 end-to-end with runtime verification commands, not just unit tests
+- add artifact retrieval checks to the local smoke workflow
+- package and reuse `agent-schema` directly instead of copying it into `agentlib`
+- start Phase 6 boundaries for provider import, beginning with GitHub
+
 ## Local requirements
 
 - Node.js `>=20` is required to run `wrangler` locally.
