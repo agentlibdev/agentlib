@@ -14,6 +14,8 @@ This worktree bootstraps the first registry slice:
 - `GET /api/v1/agents/:namespace/:name`
 - `GET /api/v1/agents/:namespace/:name/versions`
 - `GET /api/v1/agents/:namespace/:name/versions/:version`
+- `GET /api/v1/agents/:namespace/:name/versions/:version/artifacts`
+- `GET /api/v1/agents/:namespace/:name/versions/:version/artifacts/:path`
 - `POST /api/v1/publish`
 - initial D1 migration and provider seed SQL
 
@@ -44,9 +46,15 @@ Provider seed data currently includes:
 The current API behavior supports two repository modes:
 
 - in-memory seed repository for bootstrap and pure route tests
-- D1-backed repository implementation for local schema/query wiring
+- D1 + R2 backed repository implementation for local schema/query wiring
 
-The next step is executing these migrations against a real local D1 database and replacing bootstrap seed behavior with actual persisted data.
+Artifact metadata lives in D1 and artifact bytes live in R2.
+
+R2 object keys follow this layout:
+
+```text
+agents/<namespace>/<name>/<version>/<path>
+```
 
 ## Local D1 workflow
 
@@ -66,6 +74,13 @@ npm run dev:api:local
 npm run publish:sample:local
 npm run d1:list:local
 npm run d1:list:artifacts:local
+```
+
+After publishing, you can fetch artifact metadata and contents through:
+
+```text
+GET /api/v1/agents/:namespace/:name/versions/:version/artifacts
+GET /api/v1/agents/:namespace/:name/versions/:version/artifacts/:path
 ```
 
 ## Publish alpha
@@ -88,6 +103,6 @@ Current behavior:
 - returns `400` for invalid payloads
 - returns `400` if the manifest fails AgentLib schema validation
 
-Artifact persistence in R2 is not implemented yet. The current write path focuses on metadata persistence and version immutability.
+Artifact metadata is persisted in D1 and artifact bytes are stored in R2. D1 keeps the `r2_key`, media type, size and checksum placeholders; it no longer stores inline artifact payloads.
 
 Manifest validation is enforced in `agentlib` using a local schema copy sourced from `agent-schema`. Keeping those definitions aligned is now an explicit maintenance task until the schema is packaged for direct reuse.

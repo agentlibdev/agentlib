@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { D1AgentRepository } from "../src/d1-agent-repository.js";
+import type { ArtifactStorage, StoredArtifact } from "../../../packages/storage/src/artifact-storage.js";
 
 type StatementResult<Row> = {
   results: Row[];
@@ -45,6 +46,21 @@ class FakeDatabase {
   }
 }
 
+class FakeArtifactStorage implements ArtifactStorage {
+  readonly puts: Array<{ key: string; mediaType: string; content: ArrayBuffer }> = [];
+
+  constructor(private readonly objects: Record<string, StoredArtifact> = {}) {}
+
+  async putArtifact(key: string, mediaType: string, content: ArrayBuffer): Promise<void> {
+    this.puts.push({ key, mediaType, content });
+    this.objects[key] = { key, mediaType, content };
+  }
+
+  async getArtifact(key: string): Promise<StoredArtifact | null> {
+    return this.objects[key] ?? null;
+  }
+}
+
 test("D1AgentRepository maps list query rows into API list records", async () => {
   const repository = new D1AgentRepository(
     new FakeDatabase({
@@ -62,7 +78,8 @@ test("D1AgentRepository maps list query rows into API list records", async () =>
       "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC": {
         results: []
       }
-    }) as unknown as D1Database
+    }) as unknown as D1Database,
+    new FakeArtifactStorage()
   );
 
   const result = await repository.listAgents();
@@ -109,7 +126,8 @@ test("D1AgentRepository groups detail rows into one agent detail response", asyn
           }
         ]
       }
-    }) as unknown as D1Database
+    }) as unknown as D1Database,
+    new FakeArtifactStorage()
   );
 
   const result = await repository.getAgentDetail("raul", "code-reviewer");
@@ -144,7 +162,8 @@ test("D1AgentRepository returns null when no detail rows exist", async () => {
       "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC": {
         results: []
       }
-    }) as unknown as D1Database
+    }) as unknown as D1Database,
+    new FakeArtifactStorage()
   );
 
   const result = await repository.getAgentDetail("raul", "missing-agent");
@@ -175,7 +194,8 @@ test("D1AgentRepository returns one version detail row", async () => {
           }
         ]
       }
-    }) as unknown as D1Database
+    }) as unknown as D1Database,
+    new FakeArtifactStorage()
   );
 
   const result = await repository.getAgentVersionDetail("raul", "code-reviewer", "0.2.0");
@@ -222,7 +242,8 @@ test("D1AgentRepository publishes a new version for a new agent", async () => {
         results: []
       }
     });
-  const repository = new D1AgentRepository(database as unknown as D1Database);
+  const storage = new FakeArtifactStorage();
+  const repository = new D1AgentRepository(database as unknown as D1Database, storage);
 
   const result = await repository.publishAgentVersion({
     manifest: {
@@ -255,6 +276,8 @@ test("D1AgentRepository publishes a new version for a new agent", async () => {
       "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
     )
   );
+  assert.equal(storage.puts.length, 1);
+  assert.equal(storage.puts[0]?.key, "agents/raul/code-reviewer/0.3.0/agent.yaml");
 });
 
 test("D1AgentRepository rejects publishing an existing version", async () => {
@@ -287,7 +310,8 @@ test("D1AgentRepository rejects publishing an existing version", async () => {
       "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)": {
         results: []
       }
-    }) as unknown as D1Database
+    }) as unknown as D1Database,
+    new FakeArtifactStorage()
   );
 
   await assert.rejects(
@@ -306,4 +330,95 @@ test("D1AgentRepository rejects publishing an existing version", async () => {
     }),
     /version_exists/
   );
+});
+
+test("D1AgentRepository lists artifact metadata for a version", async () => {
+  const repository = new D1AgentRepository(
+    new FakeDatabase({
+      "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description FROM agent_list_view ORDER BY namespace, name LIMIT 50": {
+        results: []
+      },
+      "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC": {
+        results: []
+      },
+      "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path": {
+        results: [
+          {
+            path: "README.md",
+            mediaType: "text/markdown",
+            sizeBytes: 287
+          },
+          {
+            path: "agent.yaml",
+            mediaType: "application/yaml",
+            sizeBytes: 744
+          }
+        ]
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.r2_key AS r2Key FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
+        results: []
+      }
+    }) as unknown as D1Database,
+    new FakeArtifactStorage()
+  );
+
+  const result = await repository.listArtifacts("raul", "docs-writer", "0.1.0");
+
+  assert.deepEqual(result, [
+    {
+      path: "README.md",
+      mediaType: "text/markdown",
+      sizeBytes: 287
+    },
+    {
+      path: "agent.yaml",
+      mediaType: "application/yaml",
+      sizeBytes: 744
+    }
+  ]);
+});
+
+test("D1AgentRepository resolves artifact content from R2 using the stored r2 key", async () => {
+  const storage = new FakeArtifactStorage({
+    "agents/raul/docs-writer/0.1.0/README.md": {
+      key: "agents/raul/docs-writer/0.1.0/README.md",
+      mediaType: "text/markdown",
+      content: new TextEncoder().encode("# docs-writer\n").buffer
+    }
+  });
+  const repository = new D1AgentRepository(
+    new FakeDatabase({
+      "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description FROM agent_list_view ORDER BY namespace, name LIMIT 50": {
+        results: []
+      },
+      "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC": {
+        results: []
+      },
+      "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.r2_key AS r2Key FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
+        results: [
+          {
+            path: "README.md",
+            mediaType: "text/markdown",
+            r2Key: "agents/raul/docs-writer/0.1.0/README.md"
+          }
+        ]
+      }
+    }) as unknown as D1Database,
+    storage
+  );
+
+  const result = await repository.getArtifactContent("raul", "docs-writer", "0.1.0", "README.md");
+
+  assert.equal(result?.path, "README.md");
+  assert.equal(result?.mediaType, "text/markdown");
+  assert.equal(new TextDecoder().decode(result?.content), "# docs-writer\n");
 });

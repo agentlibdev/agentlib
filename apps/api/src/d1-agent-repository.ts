@@ -3,10 +3,13 @@ import type {
   AgentListItem,
   AgentVersionDetail,
   AgentVersionRecord,
+  ArtifactContent,
+  ArtifactRecord,
   PublishRequest,
   PublishResult
 } from "../../../packages/core/src/agent-record.js";
 import type { AgentRepository } from "../../../packages/core/src/agent-repository.js";
+import type { ArtifactStorage } from "../../../packages/storage/src/artifact-storage.js";
 
 const LIST_AGENTS_SQL =
   "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description FROM agent_list_view ORDER BY namespace, name LIMIT 50";
@@ -34,6 +37,12 @@ const INSERT_AGENT_VERSION_SQL =
 
 const INSERT_ARTIFACT_SQL =
   "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)";
+
+const LIST_ARTIFACTS_SQL =
+  "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path";
+
+const GET_ARTIFACT_SQL =
+  "SELECT art.path, art.media_type AS mediaType, art.r2_key AS r2Key FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1";
 
 type AgentListRow = AgentListItem;
 
@@ -64,6 +73,14 @@ type AgentRow = {
   name: string;
 };
 
+type ArtifactRow = ArtifactRecord;
+
+type ArtifactLookupRow = {
+  path: string;
+  mediaType: string;
+  r2Key: string;
+};
+
 function createId(prefix: string, parts: string[]): string {
   return [prefix, ...parts].join("_").replace(/[^a-zA-Z0-9_]/g, "_");
 }
@@ -84,8 +101,19 @@ function createArtifactMetadata(content: string) {
   };
 }
 
+function buildArtifactKey(namespace: string, name: string, version: string, path: string): string {
+  return `agents/${namespace}/${name}/${version}/${path}`;
+}
+
+function decodeBase64Bytes(content: string): ArrayBuffer {
+  return Uint8Array.from(atob(content), (char) => char.charCodeAt(0)).buffer;
+}
+
 export class D1AgentRepository implements AgentRepository {
-  constructor(private readonly db: D1Database) {}
+  constructor(
+    private readonly db: D1Database,
+    private readonly storage: ArtifactStorage
+  ) {}
 
   async listAgents() {
     const result = await this.db.prepare(LIST_AGENTS_SQL).all<AgentListRow>();
@@ -154,6 +182,47 @@ export class D1AgentRepository implements AgentRepository {
     };
   }
 
+  async listArtifacts(
+    namespace: string,
+    name: string,
+    version: string
+  ): Promise<ArtifactRecord[] | null> {
+    const result = await this.db
+      .prepare(LIST_ARTIFACTS_SQL)
+      .bind(namespace, name, version)
+      .all<ArtifactRow>();
+
+    return result.results.length > 0 ? result.results : null;
+  }
+
+  async getArtifactContent(
+    namespace: string,
+    name: string,
+    version: string,
+    path: string
+  ): Promise<ArtifactContent | null> {
+    const result = await this.db
+      .prepare(GET_ARTIFACT_SQL)
+      .bind(namespace, name, version, path)
+      .all<ArtifactLookupRow>();
+
+    const row = result.results[0];
+    if (!row) {
+      return null;
+    }
+
+    const artifact = await this.storage.getArtifact(row.r2Key);
+    if (!artifact) {
+      return null;
+    }
+
+    return {
+      path: row.path,
+      mediaType: row.mediaType,
+      content: artifact.content
+    };
+  }
+
   async publishAgentVersion(payload: PublishRequest): Promise<PublishResult> {
     const metadata = payload.manifest.metadata;
     const now = new Date().toISOString();
@@ -214,6 +283,18 @@ export class D1AgentRepository implements AgentRepository {
         artifact.path
       ]);
       const artifactMeta = createArtifactMetadata(artifact.content);
+      const artifactKey = buildArtifactKey(
+        metadata.namespace,
+        metadata.name,
+        metadata.version,
+        artifact.path
+      );
+
+      await this.storage.putArtifact(
+        artifactKey,
+        artifact.mediaType,
+        decodeBase64Bytes(artifact.content)
+      );
 
       await this.db
         .prepare(INSERT_ARTIFACT_SQL)
@@ -224,7 +305,7 @@ export class D1AgentRepository implements AgentRepository {
           artifact.mediaType,
           artifactMeta.sizeBytes,
           artifactMeta.sha256,
-          artifactMeta.r2Key
+          artifactKey
         )
         .run();
     }
@@ -241,5 +322,7 @@ export const d1Queries = {
   LIST_AGENTS_SQL,
   GET_AGENT_DETAIL_SQL,
   GET_AGENT_VERSION_DETAIL_SQL,
-  INSERT_ARTIFACT_SQL
+  INSERT_ARTIFACT_SQL,
+  LIST_ARTIFACTS_SQL,
+  GET_ARTIFACT_SQL
 };

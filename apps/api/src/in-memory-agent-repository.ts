@@ -3,6 +3,8 @@ import type {
   AgentListResult,
   AgentVersionDetail,
   AgentVersionRecord,
+  ArtifactContent,
+  ArtifactRecord,
   PublishRequest,
   PublishResult
 } from "../../../packages/core/src/agent-record.js";
@@ -24,6 +26,7 @@ const seedAgent: AgentDetail = {
 
 export class InMemoryAgentRepository implements AgentRepository {
   private readonly agents = new Map<string, AgentDetail>([[`${seedAgent.namespace}/${seedAgent.name}`, seedAgent]]);
+  private readonly artifacts = new Map<string, ArtifactContent[]>();
 
   async listAgents(): Promise<AgentListResult> {
     const entries = [...this.agents.values()];
@@ -78,6 +81,33 @@ export class InMemoryAgentRepository implements AgentRepository {
     };
   }
 
+  async listArtifacts(
+    namespace: string,
+    name: string,
+    version: string
+  ): Promise<ArtifactRecord[] | null> {
+    const artifacts = this.artifacts.get(`${namespace}/${name}/${version}`);
+    if (!artifacts) {
+      return null;
+    }
+
+      return artifacts.map((artifact) => ({
+        path: artifact.path,
+        mediaType: artifact.mediaType,
+        sizeBytes: artifact.content.byteLength
+      }));
+  }
+
+  async getArtifactContent(
+    namespace: string,
+    name: string,
+    version: string,
+    path: string
+  ): Promise<ArtifactContent | null> {
+    const artifacts = this.artifacts.get(`${namespace}/${name}/${version}`);
+    return artifacts?.find((artifact) => artifact.path === path) ?? null;
+  }
+
   async publishAgentVersion(payload: PublishRequest): Promise<PublishResult> {
     const { namespace, name, version, title, description } = payload.manifest.metadata;
     const key = `${namespace}/${name}`;
@@ -109,6 +139,14 @@ export class InMemoryAgentRepository implements AgentRepository {
         };
 
     this.agents.set(key, updated);
+    this.artifacts.set(
+      `${namespace}/${name}/${version}`,
+      payload.artifacts.map((artifact) => ({
+        path: artifact.path,
+        mediaType: artifact.mediaType,
+        content: Uint8Array.from(atob(artifact.content), (char) => char.charCodeAt(0)).buffer
+      }))
+    );
 
     return { namespace, name, version };
   }
