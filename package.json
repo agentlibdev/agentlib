@@ -20,7 +20,9 @@
     "d1:list:artifacts:local": "wrangler d1 execute DB --local --persist-to .wrangler/state --command \"SELECT agent_version_id, path, media_type, size_bytes FROM artifacts ORDER BY path;\" --json",
     "dev:api": "wrangler dev",
     "dev:api:local": "wrangler dev --local --persist-to .wrangler/state --port 8787 --ip 127.0.0.1 --show-interactive-dev-session=false --log-level warn",
-    "publish:sample:local": "node scripts/publish-sample-local.mjs"
+    "publish:sample:local": "node scripts/publish-sample-local.mjs",
+    "list:artifacts:local": "node scripts/list-artifacts-local.mjs",
+    "download:artifact:local": "node scripts/download-artifact-local.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.15.30",

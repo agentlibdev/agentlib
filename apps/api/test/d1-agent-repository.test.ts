@@ -9,13 +9,16 @@ type StatementResult<Row> = {
 };
 
 class FakePreparedStatement<Row> {
+  private boundArgs: unknown[] = [];
+
   constructor(
     private readonly sql: string,
     private readonly result: StatementResult<Row>,
-    private readonly runs: string[]
+    private readonly runs: Array<{ sql: string; args: unknown[] }>
   ) {}
 
-  bind(): FakePreparedStatement<Row> {
+  bind(...args: unknown[]): FakePreparedStatement<Row> {
+    this.boundArgs = args;
     return this;
   }
 
@@ -24,13 +27,16 @@ class FakePreparedStatement<Row> {
   }
 
   async run(): Promise<{ success: true }> {
-    this.runs.push(this.sql);
+    this.runs.push({
+      sql: this.sql,
+      args: this.boundArgs
+    });
     return { success: true };
   }
 }
 
 class FakeDatabase {
-  readonly runs: string[] = [];
+  readonly runs: Array<{ sql: string; args: unknown[] }> = [];
 
   constructor(
     private readonly handlers: Record<string, StatementResult<Record<string, unknown>>>
@@ -272,12 +278,23 @@ test("D1AgentRepository publishes a new version for a new agent", async () => {
     version: "0.3.0"
   });
   assert.ok(
-    database.runs.includes(
-      "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
+    database.runs.some(
+      (entry) =>
+        entry.sql ===
+        "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
     )
   );
   assert.equal(storage.puts.length, 1);
   assert.equal(storage.puts[0]?.key, "agents/raul/code-reviewer/0.3.0/agent.yaml");
+  const artifactInsert = database.runs.find(
+    (entry) =>
+      entry.sql ===
+      "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
+  );
+  assert.equal(
+    artifactInsert?.args[5],
+    "ed7002b439e9ac845f22357d822bac1444730fbdb6016d3ec9432297b9ec9f73"
+  );
 });
 
 test("D1AgentRepository rejects publishing an existing version", async () => {

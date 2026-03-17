@@ -44,9 +44,6 @@ Recent implementation sequence in `main`:
 
 Recommended next slices:
 
-- replace checksum placeholders with a real SHA-256 digest during publish
-- exercise local R2 end-to-end with runtime verification commands, not just unit tests
-- add artifact retrieval checks to the local smoke workflow
 - package and reuse `agent-schema` directly instead of copying it into `agentlib`
 - start Phase 6 boundaries for provider import, beginning with GitHub
 
@@ -101,6 +98,8 @@ To exercise the HTTP publish path against local D1:
 ```bash
 npm run dev:api:local
 npm run publish:sample:local
+npm run list:artifacts:local -- raul code-reviewer 0.3.0
+npm run download:artifact:local -- raul code-reviewer 0.3.0 README.md
 npm run d1:list:local
 npm run d1:list:artifacts:local
 ```
@@ -133,5 +132,7 @@ Current behavior:
 - returns `400` if the manifest fails AgentLib schema validation
 
 Artifact metadata is persisted in D1 and artifact bytes are stored in R2. D1 keeps the `r2_key`, media type, size and checksum placeholders; it no longer stores inline artifact payloads.
+
+Artifact checksums are stored as real SHA-256 hex digests during publish.
 
 Manifest validation is enforced in `agentlib` using a local schema copy sourced from `agent-schema`. Keeping those definitions aligned is now an explicit maintenance task until the schema is packaged for direct reuse.

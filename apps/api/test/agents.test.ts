@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createApp } from "../src/create-app.js";
+import { validateManifest } from "../../../packages/validation/src/validate-manifest.js";
 
 test("GET /api/v1/agents returns a paginated agent list", async () => {
   const app = createApp({
@@ -447,6 +448,30 @@ test("POST /api/v1/publish returns 400 for a schema-invalid manifest", async () 
       message: "Manifest failed schema validation"
     }
   });
+});
+
+test("schema validation accepts the publish smoke manifest shape", () => {
+  assert.equal(
+    validateManifest({
+      apiVersion: "agentlib.dev/v1alpha1",
+      kind: "Agent",
+      metadata: {
+        namespace: "raul",
+        name: "code-reviewer",
+        version: "0.3.1",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability.",
+        license: "MIT"
+      },
+      spec: {
+        summary: "Reviews pull requests with a focus on correctness and maintainability.",
+        inputs: [],
+        outputs: [],
+        tools: []
+      }
+    }),
+    true
+  );
 });
 
 test("GET /api/v1/agents/:namespace/:name/versions/:version/artifacts returns artifact metadata", async () => {

@@ -91,13 +91,18 @@ function getBase64ByteLength(content: string): number {
   return (normalized.length * 3) / 4 - padding;
 }
 
-function createArtifactMetadata(content: string) {
+function toHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function createArtifactMetadata(content: string) {
   const sizeBytes = getBase64ByteLength(content);
+  const bytes = decodeBase64Bytes(content);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
 
   return {
     sizeBytes,
-    sha256: "pending",
-    r2Key: "pending"
+    sha256: toHex(digest)
   };
 }
 
@@ -282,7 +287,7 @@ export class D1AgentRepository implements AgentRepository {
         metadata.version,
         artifact.path
       ]);
-      const artifactMeta = createArtifactMetadata(artifact.content);
+      const artifactMeta = await createArtifactMetadata(artifact.content);
       const artifactKey = buildArtifactKey(
         metadata.namespace,
         metadata.name,
