@@ -28,6 +28,7 @@ Completed so far:
 - Phase 2: monorepo skeleton, Worker entrypoint, health endpoint, read-only agent endpoints, initial D1 schema, provider seed data, and local D1 workflow
 - Phase 3: manual/local publish alpha, manifest validation against the local `agent-schema` copy, immutable version rejection, metadata persistence in D1
 - Phase 4: artifact listing and download routes, D1 metadata + R2 byte storage split, deterministic R2 key layout, and repository wiring for artifact retrieval
+- Phase 5: real SHA-256 artifact digests during publish, shared sample publish payload, and local smoke scripts for publish/list/download against Wrangler dev
 
 Recent implementation sequence in `main`:
 
@@ -39,12 +40,14 @@ Recent implementation sequence in `main`:
 - `feat: validate publish manifests against schema`
 - `feat: persist artifacts and verify local publish`
 - `feat: serve artifacts from r2 storage`
+- `feat: add local smoke scripts and real artifact hashes`
 
 ## Next steps
 
 Recommended next slices:
 
 - package and reuse `agent-schema` directly instead of copying it into `agentlib`
+- turn the local smoke flow into a single repeatable command or CI-friendly check
 - start Phase 6 boundaries for provider import, beginning with GitHub
 
 ## Local requirements
