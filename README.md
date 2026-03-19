@@ -58,9 +58,9 @@ Recommended next slices:
 
 Immediate focus for the next slice:
 
-- turn the import preview into an explicit publish/import workflow boundary
-- decide whether import should create draft publish state or call publish only after explicit confirmation
-- expand provider testing around upstream failure handling and repo URL normalization
+- decide whether GitHub import should create draft publish state or trigger publish only after explicit confirmation
+- persist enough import state to connect a `source_repository` with the eventual published `AgentVersion`
+- add a local helper script for import preview verification and broaden upstream-failure coverage
 
 ## Local requirements
 
