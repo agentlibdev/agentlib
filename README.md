@@ -73,6 +73,8 @@ Immediate focus for the next slice:
 - Node.js `>=20` is required to run `wrangler` locally.
 - The current codebase can still be typechecked and unit-tested without `wrangler`.
 
+For a developer/contributor-focused local setup guide, see [docs/local-development.md](/home/raul/agentlibdev/agentlib/docs/local-development.md).
+
 ## Initial persistence shape
 
 The first D1 migration defines:
