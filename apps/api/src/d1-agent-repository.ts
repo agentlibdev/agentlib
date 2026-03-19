@@ -5,10 +5,13 @@ import type {
   AgentVersionRecord,
   ArtifactContent,
   ArtifactRecord,
+  GithubImportRequest,
+  GithubImportResult,
   PublishRequest,
   PublishResult
 } from "../../../packages/core/src/agent-record.js";
 import type { AgentRepository } from "../../../packages/core/src/agent-repository.js";
+import type { GithubClient } from "../../../packages/providers/src/github-client.js";
 import type { ArtifactStorage } from "../../../packages/storage/src/artifact-storage.js";
 
 const LIST_AGENTS_SQL =
@@ -43,6 +46,17 @@ const LIST_ARTIFACTS_SQL =
 
 const GET_ARTIFACT_SQL =
   "SELECT art.path, art.media_type AS mediaType, art.r2_key AS r2Key FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1";
+
+const GET_PROVIDER_SQL = "SELECT id FROM providers WHERE slug = ?1 LIMIT 1";
+
+const CHECK_SOURCE_REPOSITORY_SQL =
+  "SELECT id FROM source_repositories WHERE provider_id = ?1 AND external_id = ?2 LIMIT 1";
+
+const INSERT_SOURCE_REPOSITORY_SQL =
+  "INSERT INTO source_repositories (id, provider_id, external_id, url, owner, repo_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6)";
+
+const UPDATE_SOURCE_REPOSITORY_SQL =
+  "UPDATE source_repositories SET url = ?1, owner = ?2, repo_name = ?3 WHERE id = ?4";
 
 type AgentListRow = AgentListItem;
 
@@ -81,6 +95,14 @@ type ArtifactLookupRow = {
   r2Key: string;
 };
 
+type ProviderRow = {
+  id: string;
+};
+
+type SourceRepositoryRow = {
+  id: string;
+};
+
 function createId(prefix: string, parts: string[]): string {
   return [prefix, ...parts].join("_").replace(/[^a-zA-Z0-9_]/g, "_");
 }
@@ -117,7 +139,15 @@ function decodeBase64Bytes(content: string): ArrayBuffer {
 export class D1AgentRepository implements AgentRepository {
   constructor(
     private readonly db: D1Database,
-    private readonly storage: ArtifactStorage
+    private readonly storage: ArtifactStorage,
+    private readonly githubClient: GithubClient = {
+      async getRepository() {
+        throw new Error("github_upstream_error");
+      },
+      async getManifest() {
+        throw new Error("github_upstream_error");
+      }
+    }
   ) {}
 
   async listAgents() {
@@ -319,6 +349,75 @@ export class D1AgentRepository implements AgentRepository {
       namespace: metadata.namespace,
       name: metadata.name,
       version: metadata.version
+    };
+  }
+
+  async importGithubRepository(payload: GithubImportRequest): Promise<GithubImportResult> {
+    const repository = await this.githubClient.getRepository(payload.repositoryUrl);
+    const importedManifest = await this.githubClient.getManifest(repository, payload.ref);
+    const metadata = importedManifest.manifest as {
+      metadata: {
+        namespace: string;
+        name: string;
+        version: string;
+        title: string;
+        description: string;
+      };
+    };
+
+    const provider = await this.db.prepare(GET_PROVIDER_SQL).bind("github").all<ProviderRow>();
+    const providerId = provider.results[0]?.id;
+
+    if (!providerId) {
+      throw new Error("github_upstream_error");
+    }
+
+    const existingSourceRepository = await this.db
+      .prepare(CHECK_SOURCE_REPOSITORY_SQL)
+      .bind(providerId, repository.externalId)
+      .all<SourceRepositoryRow>();
+
+    const sourceRepositoryId =
+      existingSourceRepository.results[0]?.id ??
+      createId("source_repo_github", [repository.externalId]);
+
+    if (existingSourceRepository.results.length === 0) {
+      await this.db
+        .prepare(INSERT_SOURCE_REPOSITORY_SQL)
+        .bind(
+          sourceRepositoryId,
+          providerId,
+          repository.externalId,
+          repository.url,
+          repository.owner,
+          repository.name
+        )
+        .run();
+    } else {
+      await this.db
+        .prepare(UPDATE_SOURCE_REPOSITORY_SQL)
+        .bind(repository.url, repository.owner, repository.name, sourceRepositoryId)
+        .run();
+    }
+
+    return {
+      provider: "github",
+      repository: {
+        externalId: repository.externalId,
+        url: repository.url,
+        owner: repository.owner,
+        name: repository.name,
+        defaultBranch: repository.defaultBranch,
+        resolvedRef: importedManifest.resolvedRef
+      },
+      manifest: {
+        namespace: metadata.metadata.namespace,
+        name: metadata.metadata.name,
+        version: metadata.metadata.version,
+        title: metadata.metadata.title,
+        description: metadata.metadata.description
+      },
+      sourceRepositoryId
     };
   }
 }

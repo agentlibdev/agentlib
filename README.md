@@ -17,6 +17,7 @@ This worktree bootstraps the first registry slice:
 - `GET /api/v1/agents/:namespace/:name/versions/:version/artifacts`
 - `GET /api/v1/agents/:namespace/:name/versions/:version/artifacts/:path`
 - `POST /api/v1/publish`
+- `POST /api/v1/providers/github/import`
 - initial D1 migration and provider seed SQL
 
 More storage and publish behavior will land in later steps once the public contracts are settled.
@@ -30,6 +31,7 @@ Completed so far:
 - Phase 4: artifact listing and download routes, D1 metadata + R2 byte storage split, deterministic R2 key layout, and repository wiring for artifact retrieval
 - Phase 5: real SHA-256 artifact digests during publish, shared sample publish payload, and local smoke scripts for publish/list/download against Wrangler dev
 - Phase 6 prep: direct reuse of the `agent-schema` package and a single `smoke:local` command for the local end-to-end flow
+- Phase 6 slice 1: GitHub import preview boundary with route, provider client abstraction, `source_repositories` upsert, and manifest validation before publish orchestration
 
 Recent implementation sequence in `main`:
 
@@ -43,20 +45,22 @@ Recent implementation sequence in `main`:
 - `feat: serve artifacts from r2 storage`
 - `feat: add local smoke scripts and real artifact hashes`
 - `feat: reuse packaged schema and unify local smoke`
+- `feat: add github import preview boundary`
 
 ## Next steps
 
 Recommended next slices:
 
-- start Phase 6 provider import boundaries, beginning with GitHub
+- extend GitHub import from preview into publish orchestration
+- add a local helper script for import preview verification once the endpoint is stable
 - make `smoke:local` CI-friendly once Wrangler local execution is wired into automation
 - decide how to version and publish `@agentlibdev/agent-schema` beyond sibling-repo local development
 
 Immediate focus for the next slice:
 
-- define the import contract for `POST /api/v1/providers/github/import`
-- fetch and validate `agent.yaml` from a GitHub repository source
-- persist source repository metadata in D1 without mixing provider logic into manual publish
+- turn the import preview into an explicit publish/import workflow boundary
+- decide whether import should create draft publish state or call publish only after explicit confirmation
+- expand provider testing around upstream failure handling and repo URL normalization
 
 ## Local requirements
 
@@ -153,3 +157,38 @@ Artifact metadata is persisted in D1 and artifact bytes are stored in R2. D1 kee
 Artifact checksums are stored as real SHA-256 hex digests during publish.
 
 Manifest validation is enforced in `agentlib` through the sibling `@agentlibdev/agent-schema` package rather than a copied local schema module.
+
+## GitHub import preview
+
+The first provider import slice now exposes:
+
+```text
+POST /api/v1/providers/github/import
+```
+
+Request shape:
+
+```json
+{
+  "repositoryUrl": "https://github.com/owner/repo",
+  "ref": "main"
+}
+```
+
+Current behavior:
+
+- validates request shape and GitHub repository URL
+- resolves public repository metadata through the provider client
+- fetches and validates `agent.yaml`
+- upserts normalized repository metadata into `source_repositories`
+- returns a normalized import preview payload
+- does not publish an `AgentVersion` yet
+
+Current error responses:
+
+- `400 invalid_import_request`
+- `400 unsupported_repository_url`
+- `404 repository_not_found`
+- `404 manifest_not_found`
+- `422 invalid_manifest`
+- `502 github_upstream_error`

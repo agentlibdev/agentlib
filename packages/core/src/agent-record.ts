@@ -65,6 +65,31 @@ export type PublishResult = {
   version: string;
 };
 
+export type GithubImportRequest = {
+  repositoryUrl: string;
+  ref?: string;
+};
+
+export type GithubImportResult = {
+  provider: "github";
+  repository: {
+    externalId: string;
+    url: string;
+    owner: string;
+    name: string;
+    defaultBranch: string;
+    resolvedRef: string;
+  };
+  manifest: {
+    namespace: string;
+    name: string;
+    version: string;
+    title: string;
+    description: string;
+  };
+  sourceRepositoryId: string;
+};
+
 export type ArtifactRecord = {
   path: string;
   mediaType: string;

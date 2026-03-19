@@ -1,5 +1,6 @@
 import type { AgentRepository } from "../../../packages/core/src/agent-repository.js";
-import type { PublishRequest } from "../../../packages/core/src/agent-record.js";
+import type { GithubImportRequest, PublishRequest } from "../../../packages/core/src/agent-record.js";
+import { parseGithubRepositoryUrl } from "../../../packages/providers/src/github-import.js";
 import { validateManifest } from "../../../packages/validation/src/validate-manifest.js";
 import type { Env } from "./env.js";
 
@@ -33,6 +34,20 @@ function isValidPublishRequest(value: unknown): value is PublishRequest {
       metadata?.description &&
       typeof candidate.readme === "string" &&
       Array.isArray(candidate.artifacts)
+  );
+}
+
+function isValidGithubImportRequest(value: unknown): value is GithubImportRequest {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as GithubImportRequest;
+
+  return (
+    typeof candidate.repositoryUrl === "string" &&
+    candidate.repositoryUrl.length > 0 &&
+    (candidate.ref === undefined || typeof candidate.ref === "string")
   );
 }
 
@@ -227,6 +242,106 @@ export function createApp(repository: AgentRepository): App {
                 }
               },
               { status: 409 }
+            );
+          }
+
+          throw error;
+        }
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/providers/github/import") {
+        const payload = await request.json();
+
+        if (!isValidGithubImportRequest(payload)) {
+          return json(
+            {
+              error: {
+                code: "invalid_import_request",
+                message: "GitHub import request is invalid"
+              }
+            },
+            { status: 400 }
+          );
+        }
+
+        const parsedRepository = parseGithubRepositoryUrl(payload.repositoryUrl);
+        if (!parsedRepository) {
+          return json(
+            {
+              error: {
+                code: "unsupported_repository_url",
+                message: "Repository URL is not a supported GitHub repository"
+              }
+            },
+            { status: 400 }
+          );
+        }
+
+        if (!repository.importGithubRepository) {
+          return json(
+            {
+              error: {
+                code: "github_import_unavailable",
+                message: "GitHub import is not available"
+              }
+            },
+            { status: 501 }
+          );
+        }
+
+        try {
+          const result = await repository.importGithubRepository({
+            repositoryUrl: parsedRepository.repositoryUrl,
+            ref: payload.ref
+          });
+
+          return json({ import: result });
+        } catch (error) {
+          if (error instanceof Error && error.message === "invalid_manifest") {
+            return json(
+              {
+                error: {
+                  code: "invalid_manifest",
+                  message: "Imported manifest failed schema validation"
+                }
+              },
+              { status: 422 }
+            );
+          }
+
+          if (error instanceof Error && error.message === "repository_not_found") {
+            return json(
+              {
+                error: {
+                  code: "repository_not_found",
+                  message: "Repository not found"
+                }
+              },
+              { status: 404 }
+            );
+          }
+
+          if (error instanceof Error && error.message === "manifest_not_found") {
+            return json(
+              {
+                error: {
+                  code: "manifest_not_found",
+                  message: "agent.yaml not found in repository"
+                }
+              },
+              { status: 404 }
+            );
+          }
+
+          if (error instanceof Error && error.message === "github_upstream_error") {
+            return json(
+              {
+                error: {
+                  code: "github_upstream_error",
+                  message: "GitHub returned an upstream error"
+                }
+              },
+              { status: 502 }
             );
           }
 

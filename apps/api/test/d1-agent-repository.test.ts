@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { D1AgentRepository } from "../src/d1-agent-repository.js";
 import type { ArtifactStorage, StoredArtifact } from "../../../packages/storage/src/artifact-storage.js";
+import type { GithubClient } from "../../../packages/providers/src/github-client.js";
 
 type StatementResult<Row> = {
   results: Row[];
@@ -64,6 +65,38 @@ class FakeArtifactStorage implements ArtifactStorage {
 
   async getArtifact(key: string): Promise<StoredArtifact | null> {
     return this.objects[key] ?? null;
+  }
+}
+
+class FakeGithubClient implements GithubClient {
+  constructor(
+    private readonly repository = {
+      externalId: "123456",
+      url: "https://github.com/raul/code-reviewer",
+      owner: "raul",
+      name: "code-reviewer",
+      defaultBranch: "main"
+    },
+    private readonly manifest = {
+      resolvedRef: "main",
+      manifest: {
+        metadata: {
+          namespace: "raul",
+          name: "code-reviewer",
+          version: "0.4.0",
+          title: "Code Reviewer",
+          description: "Reviews pull requests for correctness and maintainability."
+        }
+      }
+    }
+  ) {}
+
+  async getRepository() {
+    return this.repository;
+  }
+
+  async getManifest() {
+    return this.manifest;
   }
 }
 
@@ -438,4 +471,73 @@ test("D1AgentRepository resolves artifact content from R2 using the stored r2 ke
   assert.equal(result?.path, "README.md");
   assert.equal(result?.mediaType, "text/markdown");
   assert.equal(new TextDecoder().decode(result?.content), "# docs-writer\n");
+});
+
+test("D1AgentRepository imports a GitHub repository preview and upserts source metadata", async () => {
+  const database = new FakeDatabase({
+    "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description FROM agent_list_view ORDER BY namespace, name LIMIT 50": {
+      results: []
+    },
+    "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC": {
+      results: []
+    },
+    "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1": {
+      results: []
+    },
+    "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path": {
+      results: []
+    },
+    "SELECT art.path, art.media_type AS mediaType, art.r2_key AS r2Key FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
+      results: []
+    },
+    "SELECT id FROM providers WHERE slug = ?1 LIMIT 1": {
+      results: [{ id: "provider_github" }]
+    },
+    "SELECT id FROM source_repositories WHERE provider_id = ?1 AND external_id = ?2 LIMIT 1": {
+      results: []
+    },
+    "INSERT INTO source_repositories (id, provider_id, external_id, url, owner, repo_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6)": {
+      results: []
+    },
+    "UPDATE source_repositories SET url = ?1, owner = ?2, repo_name = ?3 WHERE id = ?4": {
+      results: []
+    }
+  });
+  const repository = new D1AgentRepository(
+    database as unknown as D1Database,
+    new FakeArtifactStorage(),
+    new FakeGithubClient()
+  );
+
+  const result = await repository.importGithubRepository({
+    repositoryUrl: "https://github.com/raul/code-reviewer"
+  });
+
+  assert.deepEqual(result, {
+    provider: "github",
+    repository: {
+      externalId: "123456",
+      url: "https://github.com/raul/code-reviewer",
+      owner: "raul",
+      name: "code-reviewer",
+      defaultBranch: "main",
+      resolvedRef: "main"
+    },
+    manifest: {
+      namespace: "raul",
+      name: "code-reviewer",
+      version: "0.4.0",
+      title: "Code Reviewer",
+      description: "Reviews pull requests for correctness and maintainability."
+    },
+    sourceRepositoryId: "source_repo_github_123456"
+  });
+
+  assert.ok(
+    database.runs.some(
+      (entry) =>
+        entry.sql ===
+        "INSERT INTO source_repositories (id, provider_id, external_id, url, owner, repo_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
+    )
+  );
 });

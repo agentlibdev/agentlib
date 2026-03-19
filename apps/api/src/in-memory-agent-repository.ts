@@ -5,10 +5,14 @@ import type {
   AgentVersionRecord,
   ArtifactContent,
   ArtifactRecord,
+  GithubImportRequest,
+  GithubImportResult,
   PublishRequest,
   PublishResult
 } from "../../../packages/core/src/agent-record.js";
 import type { AgentRepository } from "../../../packages/core/src/agent-repository.js";
+import { validateManifest } from "../../../packages/validation/src/validate-manifest.js";
+import { parseGithubRepositoryUrl } from "../../../packages/providers/src/github-import.js";
 
 const seedAgent: AgentDetail = {
   namespace: "raul",
@@ -149,5 +153,54 @@ export class InMemoryAgentRepository implements AgentRepository {
     );
 
     return { namespace, name, version };
+  }
+
+  async importGithubRepository(payload: GithubImportRequest): Promise<GithubImportResult> {
+    const parsedRepository = parseGithubRepositoryUrl(payload.repositoryUrl);
+    if (!parsedRepository) {
+      throw new Error("unsupported_repository_url");
+    }
+
+    const manifest = {
+      apiVersion: "agentlib.dev/v1alpha1",
+      kind: "Agent",
+      metadata: {
+        namespace: parsedRepository.owner,
+        name: parsedRepository.repo,
+        version: "0.4.0",
+        title: "Imported GitHub Agent",
+        description: "Preview manifest imported from a GitHub repository."
+      },
+      spec: {
+        summary: "Preview manifest imported from a GitHub repository.",
+        inputs: [],
+        outputs: [],
+        tools: []
+      }
+    };
+
+    if (!validateManifest(manifest)) {
+      throw new Error("invalid_manifest");
+    }
+
+    return {
+      provider: "github",
+      repository: {
+        externalId: `${parsedRepository.owner}/${parsedRepository.repo}`,
+        url: parsedRepository.repositoryUrl,
+        owner: parsedRepository.owner,
+        name: parsedRepository.repo,
+        defaultBranch: payload.ref ?? "main",
+        resolvedRef: payload.ref ?? "main"
+      },
+      manifest: {
+        namespace: manifest.metadata.namespace,
+        name: manifest.metadata.name,
+        version: manifest.metadata.version,
+        title: manifest.metadata.title,
+        description: manifest.metadata.description
+      },
+      sourceRepositoryId: `source_repo_github_${parsedRepository.owner}_${parsedRepository.repo}`
+    };
   }
 }

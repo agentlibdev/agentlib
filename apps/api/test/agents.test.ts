@@ -450,6 +450,149 @@ test("POST /api/v1/publish returns 400 for a schema-invalid manifest", async () 
   });
 });
 
+test("POST /api/v1/providers/github/import returns an import preview", async () => {
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
+    importGithubRepository: async () => ({
+      provider: "github",
+      repository: {
+        externalId: "123456",
+        url: "https://github.com/raul/code-reviewer",
+        owner: "raul",
+        name: "code-reviewer",
+        defaultBranch: "main",
+        resolvedRef: "main"
+      },
+      manifest: {
+        namespace: "raul",
+        name: "code-reviewer",
+        version: "0.4.0",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability."
+      },
+      sourceRepositoryId: "source_repo_github_123456"
+    })
+  } as never);
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/providers/github/import", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        repositoryUrl: "https://github.com/raul/code-reviewer"
+      })
+    })
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    import: {
+      provider: "github",
+      repository: {
+        externalId: "123456",
+        url: "https://github.com/raul/code-reviewer",
+        owner: "raul",
+        name: "code-reviewer",
+        defaultBranch: "main",
+        resolvedRef: "main"
+      },
+      manifest: {
+        namespace: "raul",
+        name: "code-reviewer",
+        version: "0.4.0",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability."
+      },
+      sourceRepositoryId: "source_repo_github_123456"
+    }
+  });
+});
+
+test("POST /api/v1/providers/github/import returns 400 for an invalid payload", async () => {
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
+    importGithubRepository: async () => {
+      throw new Error("unexpected");
+    }
+  } as never);
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/providers/github/import", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        repositoryUrl: "https://gitlab.com/raul/code-reviewer"
+      })
+    })
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), {
+    error: {
+      code: "unsupported_repository_url",
+      message: "Repository URL is not a supported GitHub repository"
+    }
+  });
+});
+
+test("POST /api/v1/providers/github/import returns 422 for a schema-invalid manifest", async () => {
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
+    importGithubRepository: async () => {
+      throw new Error("invalid_manifest");
+    }
+  } as never);
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/providers/github/import", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        repositoryUrl: "https://github.com/raul/code-reviewer",
+        ref: "main"
+      })
+    })
+  );
+
+  assert.equal(response.status, 422);
+  assert.deepEqual(await response.json(), {
+    error: {
+      code: "invalid_manifest",
+      message: "Imported manifest failed schema validation"
+    }
+  });
+});
+
 test("schema validation accepts the publish smoke manifest shape", () => {
   assert.equal(
     validateManifest({

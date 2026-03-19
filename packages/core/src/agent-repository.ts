@@ -5,6 +5,8 @@ import type {
   AgentVersionRecord,
   ArtifactContent,
   ArtifactRecord,
+  GithubImportRequest,
+  GithubImportResult,
   PublishRequest,
   PublishResult
 } from "./agent-record.js";
@@ -30,4 +32,5 @@ export interface AgentRepository {
     path: string
   ): Promise<ArtifactContent | null>;
   publishAgentVersion(payload: PublishRequest): Promise<PublishResult>;
+  importGithubRepository?(payload: GithubImportRequest): Promise<GithubImportResult>;
 }
