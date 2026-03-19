@@ -31,6 +31,7 @@ const seedAgent: AgentDetail = {
 export class InMemoryAgentRepository implements AgentRepository {
   private readonly agents = new Map<string, AgentDetail>([[`${seedAgent.namespace}/${seedAgent.name}`, seedAgent]]);
   private readonly artifacts = new Map<string, ArtifactContent[]>();
+  private readonly imports = new Map<string, GithubImportResult>();
 
   async listAgents(): Promise<AgentListResult> {
     const entries = [...this.agents.values()];
@@ -183,7 +184,9 @@ export class InMemoryAgentRepository implements AgentRepository {
       throw new Error("invalid_manifest");
     }
 
-    return {
+    const draft: GithubImportResult = {
+      id: `import_draft_github_${parsedRepository.owner}_${parsedRepository.repo}_${payload.ref ?? "main"}`,
+      status: "draft",
       provider: "github",
       repository: {
         externalId: `${parsedRepository.owner}/${parsedRepository.repo}`,
@@ -202,5 +205,46 @@ export class InMemoryAgentRepository implements AgentRepository {
       },
       sourceRepositoryId: `source_repo_github_${parsedRepository.owner}_${parsedRepository.repo}`
     };
+
+    this.imports.set(draft.id, draft);
+
+    return draft;
+  }
+
+  async getImportDraft(id: string): Promise<GithubImportResult | null> {
+    return this.imports.get(id) ?? null;
+  }
+
+  async publishImportDraft(id: string): Promise<PublishResult> {
+    const draft = this.imports.get(id);
+
+    if (!draft) {
+      throw new Error("import_not_found");
+    }
+
+    if (draft.status !== "draft") {
+      throw new Error("import_not_publishable");
+    }
+
+    const result = await this.publishAgentVersion({
+      manifest: {
+        metadata: {
+          namespace: draft.manifest.namespace,
+          name: draft.manifest.name,
+          version: draft.manifest.version,
+          title: draft.manifest.title,
+          description: draft.manifest.description
+        }
+      },
+      readme: "# Imported Draft\n",
+      artifacts: []
+    });
+
+    this.imports.set(id, {
+      ...draft,
+      status: "published"
+    });
+
+    return result;
   }
 }

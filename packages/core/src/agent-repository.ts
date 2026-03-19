@@ -33,4 +33,6 @@ export interface AgentRepository {
   ): Promise<ArtifactContent | null>;
   publishAgentVersion(payload: PublishRequest): Promise<PublishResult>;
   importGithubRepository?(payload: GithubImportRequest): Promise<GithubImportResult>;
+  getImportDraft?(id: string): Promise<GithubImportResult | null>;
+  publishImportDraft?(id: string): Promise<PublishResult>;
 }

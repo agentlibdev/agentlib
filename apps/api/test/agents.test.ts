@@ -450,7 +450,7 @@ test("POST /api/v1/publish returns 400 for a schema-invalid manifest", async () 
   });
 });
 
-test("POST /api/v1/providers/github/import returns an import preview", async () => {
+test("POST /api/v1/providers/github/import returns a persisted import draft", async () => {
   const app = createApp({
     listAgents: async () => ({ items: [], nextCursor: null }),
     getAgentDetail: async () => null,
@@ -462,6 +462,8 @@ test("POST /api/v1/providers/github/import returns an import preview", async () 
       throw new Error("unexpected");
     },
     importGithubRepository: async () => ({
+      id: "import_draft_github_123456_main",
+      status: "draft",
       provider: "github",
       repository: {
         externalId: "123456",
@@ -479,7 +481,13 @@ test("POST /api/v1/providers/github/import returns an import preview", async () 
         description: "Reviews pull requests for correctness and maintainability."
       },
       sourceRepositoryId: "source_repo_github_123456"
-    })
+    }),
+    getImportDraft: async () => {
+      throw new Error("unexpected");
+    },
+    publishImportDraft: async () => {
+      throw new Error("unexpected");
+    }
   } as never);
 
   const response = await app.fetch(
@@ -494,9 +502,11 @@ test("POST /api/v1/providers/github/import returns an import preview", async () 
     })
   );
 
-  assert.equal(response.status, 200);
+  assert.equal(response.status, 201);
   assert.deepEqual(await response.json(), {
     import: {
+      id: "import_draft_github_123456_main",
+      status: "draft",
       provider: "github",
       repository: {
         externalId: "123456",
@@ -514,6 +524,116 @@ test("POST /api/v1/providers/github/import returns an import preview", async () 
         description: "Reviews pull requests for correctness and maintainability."
       },
       sourceRepositoryId: "source_repo_github_123456"
+    }
+  });
+});
+
+test("GET /api/v1/imports/:id returns draft detail", async () => {
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
+    importGithubRepository: async () => {
+      throw new Error("unexpected");
+    },
+    getImportDraft: async () => ({
+      id: "import_draft_github_123456_main",
+      status: "draft",
+      provider: "github",
+      repository: {
+        externalId: "123456",
+        url: "https://github.com/raul/code-reviewer",
+        owner: "raul",
+        name: "code-reviewer",
+        defaultBranch: "main",
+        resolvedRef: "main"
+      },
+      manifest: {
+        namespace: "raul",
+        name: "code-reviewer",
+        version: "0.4.0",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability."
+      },
+      sourceRepositoryId: "source_repo_github_123456"
+    }),
+    publishImportDraft: async () => {
+      throw new Error("unexpected");
+    }
+  } as never);
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/imports/import_draft_github_123456_main")
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    import: {
+      id: "import_draft_github_123456_main",
+      status: "draft",
+      provider: "github",
+      repository: {
+        externalId: "123456",
+        url: "https://github.com/raul/code-reviewer",
+        owner: "raul",
+        name: "code-reviewer",
+        defaultBranch: "main",
+        resolvedRef: "main"
+      },
+      manifest: {
+        namespace: "raul",
+        name: "code-reviewer",
+        version: "0.4.0",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability."
+      },
+      sourceRepositoryId: "source_repo_github_123456"
+    }
+  });
+});
+
+test("POST /api/v1/imports/:id/publish publishes a draft manually", async () => {
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
+    importGithubRepository: async () => {
+      throw new Error("unexpected");
+    },
+    getImportDraft: async () => {
+      throw new Error("unexpected");
+    },
+    publishImportDraft: async () => ({
+      namespace: "raul",
+      name: "code-reviewer",
+      version: "0.4.0"
+    })
+  } as never);
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/imports/import_draft_github_123456_main/publish", {
+      method: "POST"
+    })
+  );
+
+  assert.equal(response.status, 201);
+  assert.deepEqual(await response.json(), {
+    agent: {
+      namespace: "raul",
+      name: "code-reviewer",
+      version: "0.4.0"
     }
   });
 });

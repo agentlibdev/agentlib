@@ -49,6 +49,18 @@ CREATE TABLE source_repositories (
   FOREIGN KEY (provider_id) REFERENCES providers(id)
 );
 
+CREATE TABLE import_drafts (
+  id TEXT PRIMARY KEY,
+  source_repository_id TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  status TEXT NOT NULL,
+  resolved_ref TEXT NOT NULL,
+  manifest_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (source_repository_id) REFERENCES source_repositories(id)
+);
+
 CREATE VIEW agent_list_view AS
 SELECT
   a.namespace,

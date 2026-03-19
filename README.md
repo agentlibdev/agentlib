@@ -18,6 +18,8 @@ This worktree bootstraps the first registry slice:
 - `GET /api/v1/agents/:namespace/:name/versions/:version/artifacts/:path`
 - `POST /api/v1/publish`
 - `POST /api/v1/providers/github/import`
+- `GET /api/v1/imports/:id`
+- `POST /api/v1/imports/:id/publish`
 - initial D1 migration and provider seed SQL
 
 More storage and publish behavior will land in later steps once the public contracts are settled.
@@ -32,6 +34,7 @@ Completed so far:
 - Phase 5: real SHA-256 artifact digests during publish, shared sample publish payload, and local smoke scripts for publish/list/download against Wrangler dev
 - Phase 6 prep: direct reuse of the `agent-schema` package and a single `smoke:local` command for the local end-to-end flow
 - Phase 6 slice 1: GitHub import preview boundary with route, provider client abstraction, `source_repositories` upsert, and manifest validation before publish orchestration
+- Phase 6 slice 2: persisted import drafts and manual publish-from-draft endpoints
 
 Recent implementation sequence in `main`:
 
@@ -46,12 +49,13 @@ Recent implementation sequence in `main`:
 - `feat: add local smoke scripts and real artifact hashes`
 - `feat: reuse packaged schema and unify local smoke`
 - `feat: add github import preview boundary`
+- `feat: add import drafts and manual publish`
 
 ## Next steps
 
 Recommended next slices:
 
-- extend GitHub import from preview into publish orchestration
+- import README and artifact snapshots into the draft so publish-from-draft can create a full package, not metadata only
 - add a local helper script for import preview verification once the endpoint is stable
 - make `smoke:local` CI-friendly once Wrangler local execution is wired into automation
 - decide how to version and publish `@agentlibdev/agent-schema` beyond sibling-repo local development
@@ -158,12 +162,14 @@ Artifact checksums are stored as real SHA-256 hex digests during publish.
 
 Manifest validation is enforced in `agentlib` through the sibling `@agentlibdev/agent-schema` package rather than a copied local schema module.
 
-## GitHub import preview
+## GitHub import draft flow
 
 The first provider import slice now exposes:
 
 ```text
 POST /api/v1/providers/github/import
+GET /api/v1/imports/:id
+POST /api/v1/imports/:id/publish
 ```
 
 Request shape:
@@ -181,8 +187,13 @@ Current behavior:
 - resolves public repository metadata through the provider client
 - fetches and validates `agent.yaml`
 - upserts normalized repository metadata into `source_repositories`
-- returns a normalized import preview payload
-- does not publish an `AgentVersion` yet
+- persists an import draft in `import_drafts`
+- returns a normalized draft payload with `id` and `status`
+- allows manual publish from a persisted draft
+
+Current limitation:
+
+- publish-from-draft currently republishes validated manifest metadata only; it does not yet import README or artifact snapshots from the GitHub repository
 
 Current error responses:
 

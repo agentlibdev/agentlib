@@ -499,6 +499,9 @@ test("D1AgentRepository imports a GitHub repository preview and upserts source m
     "INSERT INTO source_repositories (id, provider_id, external_id, url, owner, repo_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6)": {
       results: []
     },
+    "INSERT INTO import_drafts (id, source_repository_id, provider, status, resolved_ref, manifest_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)": {
+      results: []
+    },
     "UPDATE source_repositories SET url = ?1, owner = ?2, repo_name = ?3 WHERE id = ?4": {
       results: []
     }
@@ -514,6 +517,8 @@ test("D1AgentRepository imports a GitHub repository preview and upserts source m
   });
 
   assert.deepEqual(result, {
+    id: "import_draft_github_123456_main",
+    status: "draft",
     provider: "github",
     repository: {
       externalId: "123456",
@@ -538,6 +543,155 @@ test("D1AgentRepository imports a GitHub repository preview and upserts source m
       (entry) =>
         entry.sql ===
         "INSERT INTO source_repositories (id, provider_id, external_id, url, owner, repo_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
+    )
+  );
+  assert.ok(
+    database.runs.some(
+      (entry) =>
+        entry.sql ===
+        "INSERT INTO import_drafts (id, source_repository_id, provider, status, resolved_ref, manifest_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"
+    )
+  );
+});
+
+test("D1AgentRepository returns one import draft detail", async () => {
+  const repository = new D1AgentRepository(
+    new FakeDatabase({
+      "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description FROM agent_list_view ORDER BY namespace, name LIMIT 50": {
+        results: []
+      },
+      "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC": {
+        results: []
+      },
+      "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path": {
+        results: []
+      },
+      "SELECT art.path, art.media_type AS mediaType, art.r2_key AS r2Key FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
+        results: []
+      },
+      "SELECT d.id, d.status, d.provider, d.resolved_ref AS resolvedRef, d.manifest_json AS manifestJson, d.source_repository_id AS sourceRepositoryId, sr.external_id AS externalId, sr.url, sr.owner, sr.repo_name AS repoName FROM import_drafts d JOIN source_repositories sr ON sr.id = d.source_repository_id WHERE d.id = ?1 LIMIT 1": {
+        results: [
+          {
+            id: "import_draft_github_123456_main",
+            status: "draft",
+            provider: "github",
+            resolvedRef: "main",
+            manifestJson:
+              "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.4.0\",\"title\":\"Code Reviewer\",\"description\":\"Reviews pull requests for correctness and maintainability.\"}}",
+            sourceRepositoryId: "source_repo_github_123456",
+            externalId: "123456",
+            url: "https://github.com/raul/code-reviewer",
+            owner: "raul",
+            repoName: "code-reviewer"
+          }
+        ]
+      }
+    }) as unknown as D1Database,
+    new FakeArtifactStorage()
+  );
+
+  const result = await repository.getImportDraft("import_draft_github_123456_main");
+
+  assert.deepEqual(result, {
+    id: "import_draft_github_123456_main",
+    status: "draft",
+    provider: "github",
+    repository: {
+      externalId: "123456",
+      url: "https://github.com/raul/code-reviewer",
+      owner: "raul",
+      name: "code-reviewer",
+      defaultBranch: "main",
+      resolvedRef: "main"
+    },
+    manifest: {
+      namespace: "raul",
+      name: "code-reviewer",
+      version: "0.4.0",
+      title: "Code Reviewer",
+      description: "Reviews pull requests for correctness and maintainability."
+    },
+    sourceRepositoryId: "source_repo_github_123456"
+  });
+});
+
+test("D1AgentRepository publishes a draft and updates its status", async () => {
+  const database = new FakeDatabase({
+    "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description FROM agent_list_view ORDER BY namespace, name LIMIT 50": {
+      results: []
+    },
+    "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC": {
+      results: []
+    },
+    "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1": {
+      results: []
+    },
+    "SELECT art.path, art.media_type AS mediaType, art.size_bytes AS sizeBytes FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path": {
+      results: []
+    },
+    "SELECT art.path, art.media_type AS mediaType, art.r2_key AS r2Key FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
+      results: []
+    },
+    "SELECT d.id, d.status, d.provider, d.resolved_ref AS resolvedRef, d.manifest_json AS manifestJson, d.source_repository_id AS sourceRepositoryId, sr.external_id AS externalId, sr.url, sr.owner, sr.repo_name AS repoName FROM import_drafts d JOIN source_repositories sr ON sr.id = d.source_repository_id WHERE d.id = ?1 LIMIT 1": {
+      results: [
+        {
+          id: "import_draft_github_123456_main",
+          status: "draft",
+          provider: "github",
+          resolvedRef: "main",
+          manifestJson:
+            "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.4.0\",\"title\":\"Code Reviewer\",\"description\":\"Reviews pull requests for correctness and maintainability.\"}}",
+          sourceRepositoryId: "source_repo_github_123456",
+          externalId: "123456",
+          url: "https://github.com/raul/code-reviewer",
+          owner: "raul",
+          repoName: "code-reviewer"
+        }
+      ]
+    },
+    "SELECT av.id FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1": {
+      results: []
+    },
+    "SELECT id, namespace, name FROM agents WHERE namespace = ?1 AND name = ?2 LIMIT 1": {
+      results: []
+    },
+    "INSERT INTO agents (id, namespace, name, latest_version, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)": {
+      results: []
+    },
+    "UPDATE agents SET latest_version = ?1, updated_at = ?2 WHERE id = ?3": {
+      results: []
+    },
+    "INSERT INTO agent_versions (id, agent_id, version, title, description, license, manifest_json, readme_path, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)": {
+      results: []
+    },
+    "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)": {
+      results: []
+    },
+    "UPDATE import_drafts SET status = ?1, updated_at = ?2 WHERE id = ?3": {
+      results: []
+    }
+  });
+  const repository = new D1AgentRepository(
+    database as unknown as D1Database,
+    new FakeArtifactStorage()
+  );
+
+  const result = await repository.publishImportDraft("import_draft_github_123456_main");
+
+  assert.deepEqual(result, {
+    namespace: "raul",
+    name: "code-reviewer",
+    version: "0.4.0"
+  });
+  assert.ok(
+    database.runs.some(
+      (entry) =>
+        entry.sql ===
+        "UPDATE import_drafts SET status = ?1, updated_at = ?2 WHERE id = ?3" &&
+        entry.args[0] === "published"
     )
   );
 });

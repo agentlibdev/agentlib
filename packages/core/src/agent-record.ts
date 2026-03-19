@@ -70,7 +70,11 @@ export type GithubImportRequest = {
   ref?: string;
 };
 
+export type ImportDraftStatus = "draft" | "published";
+
 export type GithubImportResult = {
+  id: string;
+  status: ImportDraftStatus;
   provider: "github";
   repository: {
     externalId: string;

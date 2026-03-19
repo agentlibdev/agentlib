@@ -295,7 +295,7 @@ export function createApp(repository: AgentRepository): App {
             ref: payload.ref
           });
 
-          return json({ import: result });
+          return json({ import: result }, { status: 201 });
         } catch (error) {
           if (error instanceof Error && error.message === "invalid_manifest") {
             return json(
@@ -342,6 +342,86 @@ export function createApp(repository: AgentRepository): App {
                 }
               },
               { status: 502 }
+            );
+          }
+
+          throw error;
+        }
+      }
+
+      const importDraftMatch = url.pathname.match(/^\/api\/v1\/imports\/([^/]+)$/);
+      if (request.method === "GET" && importDraftMatch) {
+        if (!repository.getImportDraft) {
+          return json(
+            {
+              error: {
+                code: "import_drafts_unavailable",
+                message: "Import drafts are not available"
+              }
+            },
+            { status: 501 }
+          );
+        }
+
+        const [, importId] = importDraftMatch;
+        const draft = await repository.getImportDraft(importId);
+
+        if (!draft) {
+          return json(
+            {
+              error: {
+                code: "import_not_found",
+                message: "Import draft not found"
+              }
+            },
+            { status: 404 }
+          );
+        }
+
+        return json({ import: draft });
+      }
+
+      const importPublishMatch = url.pathname.match(/^\/api\/v1\/imports\/([^/]+)\/publish$/);
+      if (request.method === "POST" && importPublishMatch) {
+        if (!repository.publishImportDraft) {
+          return json(
+            {
+              error: {
+                code: "import_publish_unavailable",
+                message: "Import draft publish is not available"
+              }
+            },
+            { status: 501 }
+          );
+        }
+
+        const [, importId] = importPublishMatch;
+
+        try {
+          const result = await repository.publishImportDraft(importId);
+          return json({ agent: result }, { status: 201 });
+        } catch (error) {
+          if (error instanceof Error && error.message === "import_not_found") {
+            return json(
+              {
+                error: {
+                  code: "import_not_found",
+                  message: "Import draft not found"
+                }
+              },
+              { status: 404 }
+            );
+          }
+
+          if (error instanceof Error && error.message === "import_not_publishable") {
+            return json(
+              {
+                error: {
+                  code: "import_not_publishable",
+                  message: "Import draft is not publishable"
+                }
+              },
+              { status: 409 }
             );
           }
 
