@@ -10,7 +10,7 @@ export function createRepository(env?: Env): AgentRepository {
     return new D1AgentRepository(
       env.DB,
       new R2ArtifactStorage(env.ARTIFACTS),
-      new FetchGithubClient(fetch, env.GITHUB_TOKEN)
+      new FetchGithubClient(undefined, env.GITHUB_TOKEN)
     );
   }
 

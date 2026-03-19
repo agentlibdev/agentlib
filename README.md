@@ -58,15 +58,14 @@ Recent implementation sequence in `main`:
 Recommended next slices:
 
 - broaden imported package coverage beyond `agent.yaml` and `README.md`
-- add a local helper script for import preview verification once the endpoint is stable
 - make `smoke:local` CI-friendly once Wrangler local execution is wired into automation
 - decide how to version and publish `@agentlibdev/agent-schema` beyond sibling-repo local development
 
 Immediate focus for the next slice:
 
-- decide whether GitHub import should create draft publish state or trigger publish only after explicit confirmation
-- persist enough import state to connect a `source_repository` with the eventual published `AgentVersion`
-- add a local helper script for import preview verification and broaden upstream-failure coverage
+- broaden upstream-failure coverage for GitHub import
+- broaden imported package coverage beyond `agent.yaml` and `README.md`
+- make the local import flow part of a wider end-to-end verification path
 
 ## Local requirements
 
@@ -183,6 +182,12 @@ Request shape:
   "repositoryUrl": "https://github.com/owner/repo",
   "ref": "main"
 }
+```
+
+Local helper:
+
+```bash
+npm run import:github:local -- https://github.com/owner/repo main
 ```
 
 Current behavior:

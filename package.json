@@ -21,6 +21,7 @@
     "dev:api": "wrangler dev",
     "dev:api:local": "wrangler dev --local --persist-to .wrangler/state --port 8787 --ip 127.0.0.1 --show-interactive-dev-session=false --log-level warn",
     "publish:sample:local": "node scripts/publish-sample-local.mjs",
+    "import:github:local": "node scripts/import-github-local.mjs",
     "list:artifacts:local": "node scripts/list-artifacts-local.mjs",
     "download:artifact:local": "node scripts/download-artifact-local.mjs",
     "smoke:local": "node scripts/smoke-local.mjs"

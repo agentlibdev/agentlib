@@ -30,10 +30,14 @@ export interface GithubClient {
 }
 
 export class FetchGithubClient implements GithubClient {
+  private readonly fetchFn: typeof fetch;
+
   constructor(
-    private readonly fetchFn: typeof fetch = fetch,
+    fetchFn?: typeof fetch,
     private readonly token?: string
-  ) {}
+  ) {
+    this.fetchFn = fetchFn ?? ((input, init) => globalThis.fetch(input, init));
+  }
 
   async getRepository(repositoryUrl: string): Promise<GithubRepository> {
     const parsed = parseGithubRepositoryUrl(repositoryUrl);

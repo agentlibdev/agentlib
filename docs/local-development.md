@@ -110,7 +110,13 @@ GET /api/v1/imports/:id
 POST /api/v1/imports/:id/publish
 ```
 
-Example request:
+Example helper command:
+
+```bash
+npm run import:github:local -- https://github.com/owner/repo main
+```
+
+Equivalent raw HTTP request:
 
 ```bash
 curl -s \
