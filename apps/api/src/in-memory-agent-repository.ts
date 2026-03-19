@@ -203,6 +203,19 @@ export class InMemoryAgentRepository implements AgentRepository {
         title: manifest.metadata.title,
         description: manifest.metadata.description
       },
+      readme: "# Code Reviewer\n",
+      artifacts: [
+        {
+          path: "README.md",
+          mediaType: "text/markdown",
+          sizeBytes: 16
+        },
+        {
+          path: "agent.yaml",
+          mediaType: "application/yaml",
+          sizeBytes: 46
+        }
+      ],
       sourceRepositoryId: `source_repo_github_${parsedRepository.owner}_${parsedRepository.repo}`
     };
 
@@ -236,8 +249,19 @@ export class InMemoryAgentRepository implements AgentRepository {
           description: draft.manifest.description
         }
       },
-      readme: "# Imported Draft\n",
-      artifacts: []
+      readme: draft.readme,
+      artifacts: [
+        {
+          path: "README.md",
+          mediaType: "text/markdown",
+          content: Buffer.from(draft.readme).toString("base64")
+        },
+        {
+          path: "agent.yaml",
+          mediaType: "application/yaml",
+          content: Buffer.from("apiVersion: agentlib.dev/v1alpha1\nkind: Agent\n").toString("base64")
+        }
+      ]
     });
 
     this.imports.set(id, {

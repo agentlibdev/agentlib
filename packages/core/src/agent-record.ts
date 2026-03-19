@@ -42,6 +42,12 @@ export type PublishArtifactInput = {
   content: string;
 };
 
+export type ImportDraftArtifact = {
+  path: string;
+  mediaType: string;
+  sizeBytes: number;
+};
+
 export type PublishManifestMetadata = {
   namespace: string;
   name: string;
@@ -91,6 +97,8 @@ export type GithubImportResult = {
     title: string;
     description: string;
   };
+  readme: string;
+  artifacts: ImportDraftArtifact[];
   sourceRepositoryId: string;
 };
 

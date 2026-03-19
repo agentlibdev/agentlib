@@ -35,6 +35,7 @@ Completed so far:
 - Phase 6 prep: direct reuse of the `agent-schema` package and a single `smoke:local` command for the local end-to-end flow
 - Phase 6 slice 1: GitHub import preview boundary with route, provider client abstraction, `source_repositories` upsert, and manifest validation before publish orchestration
 - Phase 6 slice 2: persisted import drafts and manual publish-from-draft endpoints
+- Phase 6 slice 3: draft snapshots now store `README.md` and artifact payloads for publish-from-draft
 
 Recent implementation sequence in `main`:
 
@@ -50,12 +51,13 @@ Recent implementation sequence in `main`:
 - `feat: reuse packaged schema and unify local smoke`
 - `feat: add github import preview boundary`
 - `feat: add import drafts and manual publish`
+- `feat: import README and artifacts into drafts`
 
 ## Next steps
 
 Recommended next slices:
 
-- import README and artifact snapshots into the draft so publish-from-draft can create a full package, not metadata only
+- broaden imported package coverage beyond `agent.yaml` and `README.md`
 - add a local helper script for import preview verification once the endpoint is stable
 - make `smoke:local` CI-friendly once Wrangler local execution is wired into automation
 - decide how to version and publish `@agentlibdev/agent-schema` beyond sibling-repo local development
@@ -193,7 +195,7 @@ Current behavior:
 
 Current limitation:
 
-- publish-from-draft currently republishes validated manifest metadata only; it does not yet import README or artifact snapshots from the GitHub repository
+- imported package snapshots currently cover `agent.yaml` and `README.md`; broader file selection is the next expansion point
 
 Current error responses:
 

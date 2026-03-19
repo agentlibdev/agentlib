@@ -480,6 +480,19 @@ test("POST /api/v1/providers/github/import returns a persisted import draft", as
         title: "Code Reviewer",
         description: "Reviews pull requests for correctness and maintainability."
       },
+      readme: "# Code Reviewer\n",
+      artifacts: [
+        {
+          path: "README.md",
+          mediaType: "text/markdown",
+          sizeBytes: 16
+        },
+        {
+          path: "agent.yaml",
+          mediaType: "application/yaml",
+          sizeBytes: 46
+        }
+      ],
       sourceRepositoryId: "source_repo_github_123456"
     }),
     getImportDraft: async () => {
@@ -523,6 +536,19 @@ test("POST /api/v1/providers/github/import returns a persisted import draft", as
         title: "Code Reviewer",
         description: "Reviews pull requests for correctness and maintainability."
       },
+      readme: "# Code Reviewer\n",
+      artifacts: [
+        {
+          path: "README.md",
+          mediaType: "text/markdown",
+          sizeBytes: 16
+        },
+        {
+          path: "agent.yaml",
+          mediaType: "application/yaml",
+          sizeBytes: 46
+        }
+      ],
       sourceRepositoryId: "source_repo_github_123456"
     }
   });
@@ -561,6 +587,19 @@ test("GET /api/v1/imports/:id returns draft detail", async () => {
         title: "Code Reviewer",
         description: "Reviews pull requests for correctness and maintainability."
       },
+      readme: "# Code Reviewer\n",
+      artifacts: [
+        {
+          path: "README.md",
+          mediaType: "text/markdown",
+          sizeBytes: 16
+        },
+        {
+          path: "agent.yaml",
+          mediaType: "application/yaml",
+          sizeBytes: 46
+        }
+      ],
       sourceRepositoryId: "source_repo_github_123456"
     }),
     publishImportDraft: async () => {
@@ -593,6 +632,19 @@ test("GET /api/v1/imports/:id returns draft detail", async () => {
         title: "Code Reviewer",
         description: "Reviews pull requests for correctness and maintainability."
       },
+      readme: "# Code Reviewer\n",
+      artifacts: [
+        {
+          path: "README.md",
+          mediaType: "text/markdown",
+          sizeBytes: 16
+        },
+        {
+          path: "agent.yaml",
+          mediaType: "application/yaml",
+          sizeBytes: 46
+        }
+      ],
       sourceRepositoryId: "source_repo_github_123456"
     }
   });

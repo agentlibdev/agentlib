@@ -56,6 +56,8 @@ CREATE TABLE import_drafts (
   status TEXT NOT NULL,
   resolved_ref TEXT NOT NULL,
   manifest_json TEXT NOT NULL,
+  readme TEXT NOT NULL,
+  artifacts_json TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   FOREIGN KEY (source_repository_id) REFERENCES source_repositories(id)

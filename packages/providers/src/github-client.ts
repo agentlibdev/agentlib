@@ -14,9 +14,19 @@ export type GithubManifestResult = {
   manifest: unknown;
 };
 
+export type GithubPackageFilesResult = {
+  readme: string;
+  artifacts: Array<{
+    path: string;
+    mediaType: string;
+    content: string;
+  }>;
+};
+
 export interface GithubClient {
   getRepository(repositoryUrl: string): Promise<GithubRepository>;
   getManifest(repository: GithubRepository, ref?: string): Promise<GithubManifestResult>;
+  getPackageFiles(repository: GithubRepository, ref?: string): Promise<GithubPackageFilesResult>;
 }
 
 export class FetchGithubClient implements GithubClient {
@@ -90,6 +100,51 @@ export class FetchGithubClient implements GithubClient {
     return {
       resolvedRef,
       manifest
+    };
+  }
+
+  async getPackageFiles(repository: GithubRepository, ref?: string): Promise<GithubPackageFilesResult> {
+    const resolvedRef = ref ?? repository.defaultBranch;
+    const [readmeResponse, manifestResponse] = await Promise.all([
+      this.fetchFn(
+        `https://raw.githubusercontent.com/${repository.owner}/${repository.name}/${resolvedRef}/README.md`,
+        {
+          headers: this.createHeaders()
+        }
+      ),
+      this.fetchFn(
+        `https://raw.githubusercontent.com/${repository.owner}/${repository.name}/${resolvedRef}/agent.yaml`,
+        {
+          headers: this.createHeaders()
+        }
+      )
+    ]);
+
+    if (readmeResponse.status === 404 || manifestResponse.status === 404) {
+      throw new Error("manifest_not_found");
+    }
+
+    if (!readmeResponse.ok || !manifestResponse.ok) {
+      throw new Error("github_upstream_error");
+    }
+
+    const readme = await readmeResponse.text();
+    const manifestSource = await manifestResponse.text();
+
+    return {
+      readme,
+      artifacts: [
+        {
+          path: "README.md",
+          mediaType: "text/markdown",
+          content: btoa(readme)
+        },
+        {
+          path: "agent.yaml",
+          mediaType: "application/yaml",
+          content: btoa(manifestSource)
+        }
+      ]
     };
   }
 

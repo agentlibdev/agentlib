@@ -88,6 +88,21 @@ class FakeGithubClient implements GithubClient {
           description: "Reviews pull requests for correctness and maintainability."
         }
       }
+    },
+    private readonly files = {
+      readme: "# Code Reviewer\n",
+      artifacts: [
+        {
+          path: "README.md",
+          mediaType: "text/markdown",
+          content: Buffer.from("# Code Reviewer\n").toString("base64")
+        },
+        {
+          path: "agent.yaml",
+          mediaType: "application/yaml",
+          content: Buffer.from("apiVersion: agentlib.dev/v1alpha1\nkind: Agent\n").toString("base64")
+        }
+      ]
     }
   ) {}
 
@@ -97,6 +112,10 @@ class FakeGithubClient implements GithubClient {
 
   async getManifest() {
     return this.manifest;
+  }
+
+  async getPackageFiles() {
+    return this.files;
   }
 }
 
@@ -499,7 +518,7 @@ test("D1AgentRepository imports a GitHub repository preview and upserts source m
     "INSERT INTO source_repositories (id, provider_id, external_id, url, owner, repo_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6)": {
       results: []
     },
-    "INSERT INTO import_drafts (id, source_repository_id, provider, status, resolved_ref, manifest_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)": {
+    "INSERT INTO import_drafts (id, source_repository_id, provider, status, resolved_ref, manifest_json, readme, artifacts_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)": {
       results: []
     },
     "UPDATE source_repositories SET url = ?1, owner = ?2, repo_name = ?3 WHERE id = ?4": {
@@ -535,6 +554,19 @@ test("D1AgentRepository imports a GitHub repository preview and upserts source m
       title: "Code Reviewer",
       description: "Reviews pull requests for correctness and maintainability."
     },
+    readme: "# Code Reviewer\n",
+    artifacts: [
+      {
+        path: "README.md",
+        mediaType: "text/markdown",
+        sizeBytes: 16
+      },
+      {
+        path: "agent.yaml",
+        mediaType: "application/yaml",
+        sizeBytes: 46
+      }
+    ],
     sourceRepositoryId: "source_repo_github_123456"
   });
 
@@ -549,7 +581,7 @@ test("D1AgentRepository imports a GitHub repository preview and upserts source m
     database.runs.some(
       (entry) =>
         entry.sql ===
-        "INSERT INTO import_drafts (id, source_repository_id, provider, status, resolved_ref, manifest_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"
+        "INSERT INTO import_drafts (id, source_repository_id, provider, status, resolved_ref, manifest_json, readme, artifacts_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"
     )
   );
 });
@@ -572,7 +604,7 @@ test("D1AgentRepository returns one import draft detail", async () => {
       "SELECT art.path, art.media_type AS mediaType, art.r2_key AS r2Key FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
         results: []
       },
-      "SELECT d.id, d.status, d.provider, d.resolved_ref AS resolvedRef, d.manifest_json AS manifestJson, d.source_repository_id AS sourceRepositoryId, sr.external_id AS externalId, sr.url, sr.owner, sr.repo_name AS repoName FROM import_drafts d JOIN source_repositories sr ON sr.id = d.source_repository_id WHERE d.id = ?1 LIMIT 1": {
+      "SELECT d.id, d.status, d.provider, d.resolved_ref AS resolvedRef, d.manifest_json AS manifestJson, d.readme, d.artifacts_json AS artifactsJson, d.source_repository_id AS sourceRepositoryId, sr.external_id AS externalId, sr.url, sr.owner, sr.repo_name AS repoName FROM import_drafts d JOIN source_repositories sr ON sr.id = d.source_repository_id WHERE d.id = ?1 LIMIT 1": {
         results: [
           {
             id: "import_draft_github_123456_main",
@@ -581,6 +613,9 @@ test("D1AgentRepository returns one import draft detail", async () => {
             resolvedRef: "main",
             manifestJson:
               "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.4.0\",\"title\":\"Code Reviewer\",\"description\":\"Reviews pull requests for correctness and maintainability.\"}}",
+            readme: "# Code Reviewer\n",
+            artifactsJson:
+              "[{\"path\":\"README.md\",\"mediaType\":\"text/markdown\",\"content\":\"IyBDb2RlIFJldmlld2VyCg==\"},{\"path\":\"agent.yaml\",\"mediaType\":\"application/yaml\",\"content\":\"YXBpVmVyc2lvbjogYWdlbnRsaWIuZGV2L3YxYWxwaGExCmtpbmQ6IEFnZW50Cg==\"}]",
             sourceRepositoryId: "source_repo_github_123456",
             externalId: "123456",
             url: "https://github.com/raul/code-reviewer",
@@ -614,6 +649,19 @@ test("D1AgentRepository returns one import draft detail", async () => {
       title: "Code Reviewer",
       description: "Reviews pull requests for correctness and maintainability."
     },
+    readme: "# Code Reviewer\n",
+    artifacts: [
+      {
+        path: "README.md",
+        mediaType: "text/markdown",
+        sizeBytes: 16
+      },
+      {
+        path: "agent.yaml",
+        mediaType: "application/yaml",
+        sizeBytes: 46
+      }
+    ],
     sourceRepositoryId: "source_repo_github_123456"
   });
 });
@@ -635,7 +683,7 @@ test("D1AgentRepository publishes a draft and updates its status", async () => {
     "SELECT art.path, art.media_type AS mediaType, art.r2_key AS r2Key FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1": {
       results: []
     },
-    "SELECT d.id, d.status, d.provider, d.resolved_ref AS resolvedRef, d.manifest_json AS manifestJson, d.source_repository_id AS sourceRepositoryId, sr.external_id AS externalId, sr.url, sr.owner, sr.repo_name AS repoName FROM import_drafts d JOIN source_repositories sr ON sr.id = d.source_repository_id WHERE d.id = ?1 LIMIT 1": {
+    "SELECT d.id, d.status, d.provider, d.resolved_ref AS resolvedRef, d.manifest_json AS manifestJson, d.readme, d.artifacts_json AS artifactsJson, d.source_repository_id AS sourceRepositoryId, sr.external_id AS externalId, sr.url, sr.owner, sr.repo_name AS repoName FROM import_drafts d JOIN source_repositories sr ON sr.id = d.source_repository_id WHERE d.id = ?1 LIMIT 1": {
       results: [
         {
           id: "import_draft_github_123456_main",
@@ -644,6 +692,9 @@ test("D1AgentRepository publishes a draft and updates its status", async () => {
           resolvedRef: "main",
           manifestJson:
             "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.4.0\",\"title\":\"Code Reviewer\",\"description\":\"Reviews pull requests for correctness and maintainability.\"}}",
+          readme: "# Code Reviewer\n",
+          artifactsJson:
+            "[{\"path\":\"README.md\",\"mediaType\":\"text/markdown\",\"content\":\"IyBDb2RlIFJldmlld2VyCg==\"},{\"path\":\"agent.yaml\",\"mediaType\":\"application/yaml\",\"content\":\"YXBpVmVyc2lvbjogYWdlbnRsaWIuZGV2L3YxYWxwaGExCmtpbmQ6IEFnZW50Cg==\"}]",
           sourceRepositoryId: "source_repo_github_123456",
           externalId: "123456",
           url: "https://github.com/raul/code-reviewer",
@@ -674,10 +725,8 @@ test("D1AgentRepository publishes a draft and updates its status", async () => {
       results: []
     }
   });
-  const repository = new D1AgentRepository(
-    database as unknown as D1Database,
-    new FakeArtifactStorage()
-  );
+  const storage = new FakeArtifactStorage();
+  const repository = new D1AgentRepository(database as unknown as D1Database, storage);
 
   const result = await repository.publishImportDraft("import_draft_github_123456_main");
 
@@ -686,6 +735,14 @@ test("D1AgentRepository publishes a draft and updates its status", async () => {
     name: "code-reviewer",
     version: "0.4.0"
   });
+  assert.ok(
+    database.runs.some(
+      (entry) =>
+        entry.sql ===
+        "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
+    )
+  );
+  assert.equal(storage.puts.length, 2);
   assert.ok(
     database.runs.some(
       (entry) =>

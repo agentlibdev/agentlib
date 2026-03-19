@@ -59,10 +59,10 @@ const UPDATE_SOURCE_REPOSITORY_SQL =
   "UPDATE source_repositories SET url = ?1, owner = ?2, repo_name = ?3 WHERE id = ?4";
 
 const INSERT_IMPORT_DRAFT_SQL =
-  "INSERT INTO import_drafts (id, source_repository_id, provider, status, resolved_ref, manifest_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)";
+  "INSERT INTO import_drafts (id, source_repository_id, provider, status, resolved_ref, manifest_json, readme, artifacts_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)";
 
 const GET_IMPORT_DRAFT_SQL =
-  "SELECT d.id, d.status, d.provider, d.resolved_ref AS resolvedRef, d.manifest_json AS manifestJson, d.source_repository_id AS sourceRepositoryId, sr.external_id AS externalId, sr.url, sr.owner, sr.repo_name AS repoName FROM import_drafts d JOIN source_repositories sr ON sr.id = d.source_repository_id WHERE d.id = ?1 LIMIT 1";
+  "SELECT d.id, d.status, d.provider, d.resolved_ref AS resolvedRef, d.manifest_json AS manifestJson, d.readme, d.artifacts_json AS artifactsJson, d.source_repository_id AS sourceRepositoryId, sr.external_id AS externalId, sr.url, sr.owner, sr.repo_name AS repoName FROM import_drafts d JOIN source_repositories sr ON sr.id = d.source_repository_id WHERE d.id = ?1 LIMIT 1";
 
 const UPDATE_IMPORT_DRAFT_STATUS_SQL =
   "UPDATE import_drafts SET status = ?1, updated_at = ?2 WHERE id = ?3";
@@ -118,6 +118,8 @@ type ImportDraftRow = {
   provider: "github";
   resolvedRef: string;
   manifestJson: string;
+  readme: string;
+  artifactsJson: string;
   sourceRepositoryId: string;
   externalId: string;
   url: string;
@@ -172,6 +174,11 @@ function mapImportDraftRow(row: ImportDraftRow): GithubImportResult {
       description: string;
     };
   };
+  const artifacts = JSON.parse(row.artifactsJson) as Array<{
+    path: string;
+    mediaType: string;
+    content: string;
+  }>;
 
   return {
     id: row.id,
@@ -192,6 +199,12 @@ function mapImportDraftRow(row: ImportDraftRow): GithubImportResult {
       title: manifest.metadata.title,
       description: manifest.metadata.description
     },
+    readme: row.readme,
+    artifacts: artifacts.map((artifact) => ({
+      path: artifact.path,
+      mediaType: artifact.mediaType,
+      sizeBytes: getBase64ByteLength(artifact.content)
+    })),
     sourceRepositoryId: row.sourceRepositoryId
   };
 }
@@ -205,6 +218,9 @@ export class D1AgentRepository implements AgentRepository {
         throw new Error("github_upstream_error");
       },
       async getManifest() {
+        throw new Error("github_upstream_error");
+      },
+      async getPackageFiles() {
         throw new Error("github_upstream_error");
       }
     }
@@ -415,6 +431,7 @@ export class D1AgentRepository implements AgentRepository {
   async importGithubRepository(payload: GithubImportRequest): Promise<GithubImportResult> {
     const repository = await this.githubClient.getRepository(payload.repositoryUrl);
     const importedManifest = await this.githubClient.getManifest(repository, payload.ref);
+    const packageFiles = await this.githubClient.getPackageFiles(repository, payload.ref);
     const metadata = importedManifest.manifest as {
       metadata: {
         namespace: string;
@@ -472,6 +489,8 @@ export class D1AgentRepository implements AgentRepository {
         "draft",
         importedManifest.resolvedRef,
         JSON.stringify(importedManifest.manifest),
+        packageFiles.readme,
+        JSON.stringify(packageFiles.artifacts),
         now,
         now
       )
@@ -496,6 +515,12 @@ export class D1AgentRepository implements AgentRepository {
         title: metadata.metadata.title,
         description: metadata.metadata.description
       },
+      readme: packageFiles.readme,
+      artifacts: packageFiles.artifacts.map((artifact) => ({
+        path: artifact.path,
+        mediaType: artifact.mediaType,
+        sizeBytes: getBase64ByteLength(artifact.content)
+      })),
       sourceRepositoryId
     };
   }
@@ -532,8 +557,12 @@ export class D1AgentRepository implements AgentRepository {
           description: draft.manifest.description
         }
       },
-      readme: "# Imported Draft\n",
-      artifacts: []
+      readme: draft.readme,
+      artifacts: JSON.parse(
+        (
+          await this.db.prepare(GET_IMPORT_DRAFT_SQL).bind(id).all<ImportDraftRow>()
+        ).results[0]?.artifactsJson ?? "[]"
+      )
     });
 
     await this.db
