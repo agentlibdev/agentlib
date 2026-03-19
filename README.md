@@ -29,7 +29,7 @@ Completed so far:
 - Phase 3: manual/local publish alpha, manifest validation, immutable version rejection, metadata persistence in D1
 - Phase 4: artifact listing and download routes, D1 metadata + R2 byte storage split, deterministic R2 key layout, and repository wiring for artifact retrieval
 - Phase 5: real SHA-256 artifact digests during publish, shared sample publish payload, and local smoke scripts for publish/list/download against Wrangler dev
-- Phase 6: direct reuse of the `agent-schema` package and a single `smoke:local` command for the local end-to-end flow
+- Phase 6 prep: direct reuse of the `agent-schema` package and a single `smoke:local` command for the local end-to-end flow
 
 Recent implementation sequence in `main`:
 
@@ -42,14 +42,21 @@ Recent implementation sequence in `main`:
 - `feat: persist artifacts and verify local publish`
 - `feat: serve artifacts from r2 storage`
 - `feat: add local smoke scripts and real artifact hashes`
+- `feat: reuse packaged schema and unify local smoke`
 
 ## Next steps
 
 Recommended next slices:
 
+- start Phase 6 provider import boundaries, beginning with GitHub
 - make `smoke:local` CI-friendly once Wrangler local execution is wired into automation
-- start provider import boundaries, beginning with GitHub
 - decide how to version and publish `@agentlibdev/agent-schema` beyond sibling-repo local development
+
+Immediate focus for the next slice:
+
+- define the import contract for `POST /api/v1/providers/github/import`
+- fetch and validate `agent.yaml` from a GitHub repository source
+- persist source repository metadata in D1 without mixing provider logic into manual publish
 
 ## Local requirements
 
