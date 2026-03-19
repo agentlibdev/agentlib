@@ -133,13 +133,14 @@ Current behavior:
 
 - validates the GitHub repository URL
 - fetches repository metadata and `agent.yaml`
+- snapshots canonical files into the draft when present: `README.md`, `agent.md`, `LICENSE`
 - validates the manifest
 - persists an import draft
 - allows manual publish from that draft
 
 Current limitation:
 
-- imported snapshots currently include `agent.yaml` and `README.md`
+- imported snapshots currently include only the canonical file set
 - broader artifact import has not landed yet
 
 ## Troubleshooting

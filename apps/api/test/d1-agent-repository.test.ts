@@ -98,6 +98,16 @@ class FakeGithubClient implements GithubClient {
           content: Buffer.from("# Code Reviewer\n").toString("base64")
         },
         {
+          path: "agent.md",
+          mediaType: "text/markdown",
+          content: Buffer.from("You are a careful code reviewer.\n").toString("base64")
+        },
+        {
+          path: "LICENSE",
+          mediaType: "text/plain",
+          content: Buffer.from("MIT License\n").toString("base64")
+        },
+        {
           path: "agent.yaml",
           mediaType: "application/yaml",
           content: Buffer.from("apiVersion: agentlib.dev/v1alpha1\nkind: Agent\n").toString("base64")
@@ -562,6 +572,16 @@ test("D1AgentRepository imports a GitHub repository preview and upserts source m
         sizeBytes: 16
       },
       {
+        path: "agent.md",
+        mediaType: "text/markdown",
+        sizeBytes: 33
+      },
+      {
+        path: "LICENSE",
+        mediaType: "text/plain",
+        sizeBytes: 12
+      },
+      {
         path: "agent.yaml",
         mediaType: "application/yaml",
         sizeBytes: 46
@@ -615,7 +635,7 @@ test("D1AgentRepository returns one import draft detail", async () => {
               "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.4.0\",\"title\":\"Code Reviewer\",\"description\":\"Reviews pull requests for correctness and maintainability.\"}}",
             readme: "# Code Reviewer\n",
             artifactsJson:
-              "[{\"path\":\"README.md\",\"mediaType\":\"text/markdown\",\"content\":\"IyBDb2RlIFJldmlld2VyCg==\"},{\"path\":\"agent.yaml\",\"mediaType\":\"application/yaml\",\"content\":\"YXBpVmVyc2lvbjogYWdlbnRsaWIuZGV2L3YxYWxwaGExCmtpbmQ6IEFnZW50Cg==\"}]",
+              "[{\"path\":\"README.md\",\"mediaType\":\"text/markdown\",\"content\":\"IyBDb2RlIFJldmlld2VyCg==\"},{\"path\":\"agent.md\",\"mediaType\":\"text/markdown\",\"content\":\"WW91IGFyZSBhIGNhcmVmdWwgY29kZSByZXZpZXdlci4K\"},{\"path\":\"LICENSE\",\"mediaType\":\"text/plain\",\"content\":\"TUlUIExpY2Vuc2UK\"},{\"path\":\"agent.yaml\",\"mediaType\":\"application/yaml\",\"content\":\"YXBpVmVyc2lvbjogYWdlbnRsaWIuZGV2L3YxYWxwaGExCmtpbmQ6IEFnZW50Cg==\"}]",
             sourceRepositoryId: "source_repo_github_123456",
             externalId: "123456",
             url: "https://github.com/raul/code-reviewer",
@@ -657,6 +677,16 @@ test("D1AgentRepository returns one import draft detail", async () => {
         sizeBytes: 16
       },
       {
+        path: "agent.md",
+        mediaType: "text/markdown",
+        sizeBytes: 33
+      },
+      {
+        path: "LICENSE",
+        mediaType: "text/plain",
+        sizeBytes: 12
+      },
+      {
         path: "agent.yaml",
         mediaType: "application/yaml",
         sizeBytes: 46
@@ -694,7 +724,7 @@ test("D1AgentRepository publishes a draft and updates its status", async () => {
             "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.4.0\",\"title\":\"Code Reviewer\",\"description\":\"Reviews pull requests for correctness and maintainability.\"}}",
           readme: "# Code Reviewer\n",
           artifactsJson:
-            "[{\"path\":\"README.md\",\"mediaType\":\"text/markdown\",\"content\":\"IyBDb2RlIFJldmlld2VyCg==\"},{\"path\":\"agent.yaml\",\"mediaType\":\"application/yaml\",\"content\":\"YXBpVmVyc2lvbjogYWdlbnRsaWIuZGV2L3YxYWxwaGExCmtpbmQ6IEFnZW50Cg==\"}]",
+            "[{\"path\":\"README.md\",\"mediaType\":\"text/markdown\",\"content\":\"IyBDb2RlIFJldmlld2VyCg==\"},{\"path\":\"agent.md\",\"mediaType\":\"text/markdown\",\"content\":\"WW91IGFyZSBhIGNhcmVmdWwgY29kZSByZXZpZXdlci4K\"},{\"path\":\"LICENSE\",\"mediaType\":\"text/plain\",\"content\":\"TUlUIExpY2Vuc2UK\"},{\"path\":\"agent.yaml\",\"mediaType\":\"application/yaml\",\"content\":\"YXBpVmVyc2lvbjogYWdlbnRsaWIuZGV2L3YxYWxwaGExCmtpbmQ6IEFnZW50Cg==\"}]",
           sourceRepositoryId: "source_repo_github_123456",
           externalId: "123456",
           url: "https://github.com/raul/code-reviewer",
@@ -742,7 +772,6 @@ test("D1AgentRepository publishes a draft and updates its status", async () => {
         "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
     )
   );
-  assert.equal(storage.puts.length, 2);
   assert.ok(
     database.runs.some(
       (entry) =>
@@ -751,4 +780,5 @@ test("D1AgentRepository publishes a draft and updates its status", async () => {
         entry.args[0] === "published"
     )
   );
+  assert.equal(storage.puts.length, 4);
 });

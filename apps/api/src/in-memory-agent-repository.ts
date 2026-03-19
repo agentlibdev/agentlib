@@ -211,6 +211,16 @@ export class InMemoryAgentRepository implements AgentRepository {
           sizeBytes: 16
         },
         {
+          path: "agent.md",
+          mediaType: "text/markdown",
+          sizeBytes: 33
+        },
+        {
+          path: "LICENSE",
+          mediaType: "text/plain",
+          sizeBytes: 12
+        },
+        {
           path: "agent.yaml",
           mediaType: "application/yaml",
           sizeBytes: 46

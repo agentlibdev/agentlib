@@ -57,14 +57,14 @@ Recent implementation sequence in `main`:
 
 Recommended next slices:
 
-- broaden imported package coverage beyond `agent.yaml` and `README.md`
 - make `smoke:local` CI-friendly once Wrangler local execution is wired into automation
 - decide how to version and publish `@agentlibdev/agent-schema` beyond sibling-repo local development
+- broaden imported package coverage beyond the canonical file set (`agent.yaml`, `README.md`, `agent.md`, `LICENSE`)
 
 Immediate focus for the next slice:
 
-- broaden upstream-failure coverage for GitHub import
-- broaden imported package coverage beyond `agent.yaml` and `README.md`
+- broaden imported package coverage beyond the canonical file set
+- add more provider-side verification for rate limit and 5xx handling
 - make the local import flow part of a wider end-to-end verification path
 
 ## Local requirements
@@ -195,6 +195,7 @@ Current behavior:
 - validates request shape and GitHub repository URL
 - resolves public repository metadata through the provider client
 - fetches and validates `agent.yaml`
+- snapshots canonical package files into the draft when present: `README.md`, `agent.md`, `LICENSE`
 - upserts normalized repository metadata into `source_repositories`
 - persists an import draft in `import_drafts`
 - returns a normalized draft payload with `id` and `status`
@@ -202,7 +203,7 @@ Current behavior:
 
 Current limitation:
 
-- imported package snapshots currently cover `agent.yaml` and `README.md`; broader file selection is the next expansion point
+- imported package snapshots currently cover the canonical file set only; broader repo file selection is the next expansion point
 
 Current error responses:
 
@@ -211,4 +212,5 @@ Current error responses:
 - `404 repository_not_found`
 - `404 manifest_not_found`
 - `422 invalid_manifest`
+- `502 github_rate_limited`
 - `502 github_upstream_error`

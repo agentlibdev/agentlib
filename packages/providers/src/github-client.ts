@@ -52,13 +52,7 @@ export class FetchGithubClient implements GithubClient {
       }
     );
 
-    if (response.status === 404) {
-      throw new Error("repository_not_found");
-    }
-
-    if (!response.ok) {
-      throw new Error("github_upstream_error");
-    }
+    this.assertGithubResponse(response, "repository_not_found");
 
     const body = (await response.json()) as {
       id: number;
@@ -86,13 +80,7 @@ export class FetchGithubClient implements GithubClient {
       }
     );
 
-    if (response.status === 404) {
-      throw new Error("manifest_not_found");
-    }
-
-    if (!response.ok) {
-      throw new Error("github_upstream_error");
-    }
+    this.assertGithubResponse(response, "manifest_not_found");
 
     const source = await response.text();
     const manifest = parseManifestYaml(source);
@@ -109,47 +97,73 @@ export class FetchGithubClient implements GithubClient {
 
   async getPackageFiles(repository: GithubRepository, ref?: string): Promise<GithubPackageFilesResult> {
     const resolvedRef = ref ?? repository.defaultBranch;
-    const [readmeResponse, manifestResponse] = await Promise.all([
-      this.fetchFn(
-        `https://raw.githubusercontent.com/${repository.owner}/${repository.name}/${resolvedRef}/README.md`,
-        {
-          headers: this.createHeaders()
-        }
-      ),
-      this.fetchFn(
-        `https://raw.githubusercontent.com/${repository.owner}/${repository.name}/${resolvedRef}/agent.yaml`,
-        {
-          headers: this.createHeaders()
-        }
-      )
+    const files = await Promise.all([
+      this.fetchFile(repository, resolvedRef, "README.md", false, "text/markdown"),
+      this.fetchFile(repository, resolvedRef, "agent.md", true, "text/markdown"),
+      this.fetchFile(repository, resolvedRef, "LICENSE", true, "text/plain"),
+      this.fetchFile(repository, resolvedRef, "agent.yaml", false, "application/yaml")
     ]);
 
-    if (readmeResponse.status === 404 || manifestResponse.status === 404) {
-      throw new Error("manifest_not_found");
-    }
-
-    if (!readmeResponse.ok || !manifestResponse.ok) {
-      throw new Error("github_upstream_error");
-    }
-
-    const readme = await readmeResponse.text();
-    const manifestSource = await manifestResponse.text();
+    const readme = files[0]?.content ?? "";
 
     return {
       readme,
-      artifacts: [
-        {
-          path: "README.md",
-          mediaType: "text/markdown",
-          content: btoa(readme)
-        },
-        {
-          path: "agent.yaml",
-          mediaType: "application/yaml",
-          content: btoa(manifestSource)
-        }
-      ]
+      artifacts: files
+        .filter((entry): entry is { path: string; mediaType: string; content: string } => entry !== null)
+        .map((entry) => ({
+          path: entry.path,
+          mediaType: entry.mediaType,
+          content: btoa(entry.content)
+        }))
     };
+  }
+
+  private async fetchFile(
+    repository: GithubRepository,
+    resolvedRef: string,
+    path: string,
+    optional: boolean,
+    mediaType: string
+  ): Promise<{ path: string; mediaType: string; content: string } | null> {
+    const response = await this.fetchFn(
+      `https://raw.githubusercontent.com/${repository.owner}/${repository.name}/${resolvedRef}/${path}`,
+      {
+        headers: this.createHeaders()
+      }
+    );
+
+    if (response.status === 404) {
+      if (optional) {
+        return null;
+      }
+
+      throw new Error("manifest_not_found");
+    }
+
+    this.assertGithubResponse(response);
+
+    return {
+      path,
+      mediaType,
+      content: await response.text()
+    };
+  }
+
+  private assertGithubResponse(
+    response: Response,
+    notFoundCode?: "repository_not_found" | "manifest_not_found"
+  ): void {
+    if (response.status === 404 && notFoundCode) {
+      throw new Error(notFoundCode);
+    }
+
+    if (response.status === 429) {
+      throw new Error("github_rate_limited");
+    }
+
+    if (!response.ok) {
+      throw new Error("github_upstream_error");
+    }
   }
 
   private createHeaders(): HeadersInit {

@@ -488,6 +488,16 @@ test("POST /api/v1/providers/github/import returns a persisted import draft", as
           sizeBytes: 16
         },
         {
+          path: "agent.md",
+          mediaType: "text/markdown",
+          sizeBytes: 33
+        },
+        {
+          path: "LICENSE",
+          mediaType: "text/plain",
+          sizeBytes: 12
+        },
+        {
           path: "agent.yaml",
           mediaType: "application/yaml",
           sizeBytes: 46
@@ -542,6 +552,16 @@ test("POST /api/v1/providers/github/import returns a persisted import draft", as
           path: "README.md",
           mediaType: "text/markdown",
           sizeBytes: 16
+        },
+        {
+          path: "agent.md",
+          mediaType: "text/markdown",
+          sizeBytes: 33
+        },
+        {
+          path: "LICENSE",
+          mediaType: "text/plain",
+          sizeBytes: 12
         },
         {
           path: "agent.yaml",
@@ -761,6 +781,44 @@ test("POST /api/v1/providers/github/import returns 422 for a schema-invalid mani
     error: {
       code: "invalid_manifest",
       message: "Imported manifest failed schema validation"
+    }
+  });
+});
+
+test("POST /api/v1/providers/github/import returns 502 for a GitHub rate limit", async () => {
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
+    importGithubRepository: async () => {
+      throw new Error("github_rate_limited");
+    }
+  } as never);
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/providers/github/import", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        repositoryUrl: "https://github.com/raul/code-reviewer",
+        ref: "main"
+      })
+    })
+  );
+
+  assert.equal(response.status, 502);
+  assert.deepEqual(await response.json(), {
+    error: {
+      code: "github_rate_limited",
+      message: "GitHub rate limit exceeded during import"
     }
   });
 });

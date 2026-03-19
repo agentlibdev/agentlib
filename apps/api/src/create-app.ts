@@ -345,6 +345,18 @@ export function createApp(repository: AgentRepository): App {
             );
           }
 
+          if (error instanceof Error && error.message === "github_rate_limited") {
+            return json(
+              {
+                error: {
+                  code: "github_rate_limited",
+                  message: "GitHub rate limit exceeded during import"
+                }
+              },
+              { status: 502 }
+            );
+          }
+
           throw error;
         }
       }
