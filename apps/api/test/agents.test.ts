@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { validateManifest } from "@agentlibdev/agent-schema";
 
 import { createApp } from "../src/create-app.js";
-import { validateManifest } from "../../../packages/validation/src/validate-manifest.js";
 
 test("GET /api/v1/agents returns a paginated agent list", async () => {
   const app = createApp({

@@ -22,12 +22,13 @@
     "dev:api:local": "wrangler dev --local --persist-to .wrangler/state --port 8787 --ip 127.0.0.1 --show-interactive-dev-session=false --log-level warn",
     "publish:sample:local": "node scripts/publish-sample-local.mjs",
     "list:artifacts:local": "node scripts/list-artifacts-local.mjs",
-    "download:artifact:local": "node scripts/download-artifact-local.mjs"
+    "download:artifact:local": "node scripts/download-artifact-local.mjs",
+    "smoke:local": "node scripts/smoke-local.mjs"
   },
   "devDependencies": {
+    "@agentlibdev/agent-schema": "file:../agent-schema",
     "@types/node": "^22.15.30",
     "@cloudflare/workers-types": "^4.20260305.0",
-    "ajv": "^8.17.1",
     "typescript": "^5.9.2",
     "wrangler": "^4.38.0"
   }

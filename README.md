@@ -26,9 +26,10 @@ More storage and publish behavior will land in later steps once the public contr
 Completed so far:
 
 - Phase 2: monorepo skeleton, Worker entrypoint, health endpoint, read-only agent endpoints, initial D1 schema, provider seed data, and local D1 workflow
-- Phase 3: manual/local publish alpha, manifest validation against the local `agent-schema` copy, immutable version rejection, metadata persistence in D1
+- Phase 3: manual/local publish alpha, manifest validation, immutable version rejection, metadata persistence in D1
 - Phase 4: artifact listing and download routes, D1 metadata + R2 byte storage split, deterministic R2 key layout, and repository wiring for artifact retrieval
 - Phase 5: real SHA-256 artifact digests during publish, shared sample publish payload, and local smoke scripts for publish/list/download against Wrangler dev
+- Phase 6: direct reuse of the `agent-schema` package and a single `smoke:local` command for the local end-to-end flow
 
 Recent implementation sequence in `main`:
 
@@ -46,9 +47,9 @@ Recent implementation sequence in `main`:
 
 Recommended next slices:
 
-- package and reuse `agent-schema` directly instead of copying it into `agentlib`
-- turn the local smoke flow into a single repeatable command or CI-friendly check
-- start Phase 6 boundaries for provider import, beginning with GitHub
+- make `smoke:local` CI-friendly once Wrangler local execution is wired into automation
+- start provider import boundaries, beginning with GitHub
+- decide how to version and publish `@agentlibdev/agent-schema` beyond sibling-repo local development
 
 ## Local requirements
 
@@ -107,6 +108,12 @@ npm run d1:list:local
 npm run d1:list:artifacts:local
 ```
 
+To run the same flow as a single local check:
+
+```bash
+npm run smoke:local
+```
+
 After publishing, you can fetch artifact metadata and contents through:
 
 ```text
@@ -138,4 +145,4 @@ Artifact metadata is persisted in D1 and artifact bytes are stored in R2. D1 kee
 
 Artifact checksums are stored as real SHA-256 hex digests during publish.
 
-Manifest validation is enforced in `agentlib` using a local schema copy sourced from `agent-schema`. Keeping those definitions aligned is now an explicit maintenance task until the schema is packaged for direct reuse.
+Manifest validation is enforced in `agentlib` through the sibling `@agentlibdev/agent-schema` package rather than a copied local schema module.
