@@ -1,14 +1,20 @@
+import { Breadcrumbs } from "../components/breadcrumbs.js";
 import { buildArtifactDownloadUrl } from "../lib/api.js";
 import type { AgentVersionDetailResponse, ArtifactItem } from "../lib/types.js";
+import type { Breadcrumb } from "../lib/view-models.js";
 
 type VersionPageProps = {
   detail: AgentVersionDetailResponse;
   artifacts: ArtifactItem[];
+  breadcrumbs: Breadcrumb[];
+  onNavigate: (path: string) => void;
 };
 
-export function VersionPage({ detail, artifacts }: VersionPageProps) {
+export function VersionPage({ detail, artifacts, breadcrumbs, onNavigate }: VersionPageProps) {
   return (
     <section className="panel stack-lg">
+      <Breadcrumbs items={breadcrumbs} onNavigate={onNavigate} />
+
       <div className="stack-xs">
         <p className="eyebrow">Version</p>
         <h1>
@@ -23,25 +29,32 @@ export function VersionPage({ detail, artifacts }: VersionPageProps) {
 
       <div className="artifact-panel stack-sm">
         <h2>Artifacts</h2>
-        <div className="artifact-list">
-          {artifacts.map((artifact) => (
-            <a
-              key={artifact.path}
-              className="artifact-row"
-              href={buildArtifactDownloadUrl(
-                detail.version.namespace,
-                detail.version.name,
-                detail.version.version,
-                artifact.path
-              )}
-            >
-              <span>{artifact.path}</span>
-              <span>
-                {artifact.mediaType} · {artifact.sizeBytes} bytes
-              </span>
-            </a>
-          ))}
-        </div>
+        {artifacts.length === 0 ? (
+          <div className="empty-state inset-empty stack-sm">
+            <p className="eyebrow">Empty</p>
+            <h2>No artifacts published for this version.</h2>
+          </div>
+        ) : (
+          <div className="artifact-list">
+            {artifacts.map((artifact) => (
+              <a
+                key={artifact.path}
+                className="artifact-row"
+                href={buildArtifactDownloadUrl(
+                  detail.version.namespace,
+                  detail.version.name,
+                  detail.version.version,
+                  artifact.path
+                )}
+              >
+                <span>{artifact.path}</span>
+                <span>
+                  {artifact.mediaType} · {artifact.sizeBytes} bytes
+                </span>
+              </a>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="manifest-panel stack-sm">

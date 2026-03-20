@@ -16,6 +16,7 @@ import type {
 import { HomePage } from "./routes/home-page.js";
 import { AgentPage } from "./routes/agent-page.js";
 import { VersionPage } from "./routes/version-page.js";
+import { buildBreadcrumbs } from "./lib/view-models.js";
 
 type LoadState =
   | { status: "loading" }
@@ -70,7 +71,13 @@ export function App() {
           if (!cancelled) {
             setState({
               status: "ready",
-              view: <AgentPage detail={detail} onNavigate={navigate} />
+              view: (
+                <AgentPage
+                  breadcrumbs={buildBreadcrumbs(route)}
+                  detail={detail}
+                  onNavigate={navigate}
+                />
+              )
             });
           }
           return;
@@ -86,7 +93,14 @@ export function App() {
           if (!cancelled) {
             setState({
               status: "ready",
-              view: <VersionPage detail={detail} artifacts={artifacts.items} />
+              view: (
+                <VersionPage
+                  artifacts={artifacts.items}
+                  breadcrumbs={buildBreadcrumbs(route)}
+                  detail={detail}
+                  onNavigate={navigate}
+                />
+              )
             });
           }
           return;
@@ -97,7 +111,8 @@ export function App() {
           view: (
             <section className="panel empty-state stack-sm">
               <p className="eyebrow">Not Found</p>
-              <h1>There is nothing here yet.</h1>
+              <h1>This route does not map to an agent page.</h1>
+              <p>Go back to the registry and pick an existing agent or version.</p>
             </section>
           )
         });
@@ -131,6 +146,7 @@ export function App() {
         <section className="panel empty-state">
           <p className="eyebrow">Loading</p>
           <h1>Fetching registry state.</h1>
+          <p>Loading current catalog data from the AgentLib API.</p>
         </section>
       ) : null}
 
@@ -139,7 +155,11 @@ export function App() {
           <p className="eyebrow">Error</p>
           <h1>Could not load this page.</h1>
           <p>{state.message}</p>
-          <button className="brand" onClick={() => navigate(buildAgentPath("raul", "code-reviewer"))} type="button">
+          <button
+            className="brand"
+            onClick={() => navigate(buildAgentPath("raul", "code-reviewer"))}
+            type="button"
+          >
             Open sample agent
           </button>
         </section>

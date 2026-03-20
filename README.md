@@ -147,8 +147,10 @@ GET /api/v1/agents/:namespace/:name/versions/:version/artifacts/:path
 The first web slice lives in `apps/web` and is read-only. It currently supports:
 
 - home/list view for agents
+- local filter on the catalog view
 - agent detail view
 - version detail view
+- breadcrumbs between registry, agent, and version pages
 - artifact download links
 
 Local dev:

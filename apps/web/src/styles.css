@@ -59,6 +59,36 @@ button {
   font-size: 0.95rem;
 }
 
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.breadcrumb-item button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.breadcrumb-item button:hover {
+  color: var(--accent-strong);
+}
+
+.breadcrumb-separator {
+  opacity: 0.55;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -117,6 +147,35 @@ h2 {
   gap: 16px;
 }
 
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: end;
+}
+
+.search-field {
+  display: grid;
+  gap: 8px;
+  width: min(460px, 100%);
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.search-field input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text);
+}
+
+.toolbar-meta {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 .agent-card,
 .version-row {
   width: 100%;
@@ -155,6 +214,13 @@ h2 {
 
 .agent-pill {
   color: var(--accent-strong);
+}
+
+.agent-card-link {
+  display: inline-block;
+  margin-top: 14px;
+  color: var(--accent-strong);
+  font-size: 0.92rem;
 }
 
 .version-list,
@@ -198,6 +264,12 @@ h2 {
   padding: 64px 20px;
 }
 
+.inset-empty {
+  border: 1px dashed var(--border);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
 .error-state {
   color: #8e2b1a;
 }
@@ -209,6 +281,7 @@ h2 {
   }
 
   .topbar,
+  .toolbar,
   .agent-card-head,
   .meta-row,
   .artifact-row {

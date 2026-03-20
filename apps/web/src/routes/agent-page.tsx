@@ -1,14 +1,19 @@
+import { Breadcrumbs } from "../components/breadcrumbs.js";
 import type { AgentDetailResponse } from "../lib/types.js";
+import type { Breadcrumb } from "../lib/view-models.js";
 import { buildVersionPath } from "../lib/router.js";
 
 type AgentPageProps = {
   detail: AgentDetailResponse;
   onNavigate: (path: string) => void;
+  breadcrumbs: Breadcrumb[];
 };
 
-export function AgentPage({ detail, onNavigate }: AgentPageProps) {
+export function AgentPage({ detail, onNavigate, breadcrumbs }: AgentPageProps) {
   return (
     <section className="panel stack-lg">
+      <Breadcrumbs items={breadcrumbs} onNavigate={onNavigate} />
+
       <div className="stack-xs">
         <p className="eyebrow">Agent</p>
         <h1>
