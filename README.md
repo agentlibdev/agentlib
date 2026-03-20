@@ -16,6 +16,7 @@ This worktree bootstraps the first registry slice:
 - `GET /api/v1/agents/:namespace/:name/versions/:version`
 - `GET /api/v1/agents/:namespace/:name/versions/:version/artifacts`
 - `GET /api/v1/agents/:namespace/:name/versions/:version/artifacts/:path`
+- read-only React web app in `apps/web`
 - `POST /api/v1/publish`
 - `POST /api/v1/providers/github/import`
 - `GET /api/v1/imports/:id`
@@ -52,6 +53,8 @@ Recent implementation sequence in `main`:
 - `feat: add github import preview boundary`
 - `feat: add import drafts and manual publish`
 - `feat: import README and artifacts into drafts`
+- `feat: broaden import draft coverage and errors`
+- `feat: add read-only web app`
 
 ## Next steps
 
@@ -138,6 +141,24 @@ After publishing, you can fetch artifact metadata and contents through:
 GET /api/v1/agents/:namespace/:name/versions/:version/artifacts
 GET /api/v1/agents/:namespace/:name/versions/:version/artifacts/:path
 ```
+
+## Web app
+
+The first web slice lives in `apps/web` and is read-only. It currently supports:
+
+- home/list view for agents
+- agent detail view
+- version detail view
+- artifact download links
+
+Local dev:
+
+```bash
+npm run dev:api:local
+npm run dev:web
+```
+
+The Vite dev server runs on `http://127.0.0.1:4173` and proxies `/api` to the local Worker on `http://127.0.0.1:8787`.
 
 ## Publish alpha
 

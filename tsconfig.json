@@ -5,6 +5,12 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "noEmit": true,
+    "jsx": "react-jsx",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "types": [
       "node",
       "@cloudflare/workers-types"
@@ -13,6 +19,7 @@
   },
   "include": [
     "apps/**/*.ts",
+    "apps/**/*.tsx",
     "packages/**/*.ts"
   ]
 }

@@ -60,6 +60,7 @@ npm run d1:list:artifacts:local
 ```bash
 npm test
 npm run typecheck
+npm run build:web
 ```
 
 ### Run the end-to-end local smoke flow
@@ -76,6 +77,17 @@ This orchestrates the local flow end-to-end:
 - lists its artifacts
 - downloads one artifact
 - validates expected output
+
+## Web app local development
+
+Start the API and web app in separate terminals:
+
+```bash
+npm run dev:api:local
+npm run dev:web
+```
+
+The web app runs on `http://127.0.0.1:4173` and proxies `/api` requests to the local Worker.
 
 ## Manual publish flow
 
