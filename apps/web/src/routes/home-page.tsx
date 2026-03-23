@@ -1,6 +1,6 @@
 import { useDeferredValue, useState } from "react";
 
-import { buildAgentPath } from "../lib/router.js";
+import { buildAgentPath, buildImportNewPath } from "../lib/router.js";
 import type { AgentListItem } from "../lib/types.js";
 import { filterAgents } from "../lib/view-models.js";
 
@@ -38,6 +38,21 @@ export function HomePage({ agents, onNavigate }: HomePageProps) {
         <p className="toolbar-meta">
           {filteredAgents.length} of {agents.length} visible
         </p>
+      </div>
+
+      <div className="callout-banner">
+        <div className="stack-xs">
+          <p className="eyebrow">GitHub Import</p>
+          <h2>Bring an external repository in as a draft.</h2>
+          <p>Validate `agent.yaml`, inspect the snapshot, and publish manually from the web.</p>
+        </div>
+        <button
+          className="primary-action"
+          onClick={() => onNavigate(buildImportNewPath())}
+          type="button"
+        >
+          Start import
+        </button>
       </div>
 
       {filteredAgents.length === 0 ? (

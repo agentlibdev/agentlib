@@ -37,6 +37,7 @@ Completed so far:
 - Phase 6 slice 1: GitHub import preview boundary with route, provider client abstraction, `source_repositories` upsert, and manifest validation before publish orchestration
 - Phase 6 slice 2: persisted import drafts and manual publish-from-draft endpoints
 - Phase 6 slice 3: draft snapshots now store `README.md` and artifact payloads for publish-from-draft
+- Phase 7 slice 2: web import draft UI for create, inspect, and manual publish
 
 Recent implementation sequence in `main`:
 
@@ -55,6 +56,7 @@ Recent implementation sequence in `main`:
 - `feat: import README and artifacts into drafts`
 - `feat: broaden import draft coverage and errors`
 - `feat: add read-only web app`
+- `feat: add web import drafts flow`
 
 ## Next steps
 
@@ -152,6 +154,8 @@ The first web slice lives in `apps/web` and is read-only. It currently supports:
 - version detail view
 - breadcrumbs between registry, agent, and version pages
 - artifact download links
+- GitHub import form at `/imports/new`
+- import draft detail and manual publish flow at `/imports/:id`
 
 Local dev:
 
@@ -161,6 +165,12 @@ npm run dev:web
 ```
 
 The Vite dev server runs on `http://127.0.0.1:4173` and proxies `/api` to the local Worker on `http://127.0.0.1:8787`.
+
+The web import flow exercises the existing API endpoints directly:
+
+- `POST /api/v1/providers/github/import`
+- `GET /api/v1/imports/:id`
+- `POST /api/v1/imports/:id/publish`
 
 ## Publish alpha
 

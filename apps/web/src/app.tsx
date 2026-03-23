@@ -1,20 +1,26 @@
 import { startTransition, useEffect, useState } from "react";
 
 import {
+  createGithubImport,
   fetchAgent,
   fetchAgents,
   fetchArtifacts,
-  fetchAgentVersion
+  fetchAgentVersion,
+  fetchImportDraft,
+  publishImportDraft
 } from "./lib/api.js";
-import { buildAgentPath, matchRoute } from "./lib/router.js";
+import { buildAgentPath, buildImportDetailPath, buildVersionPath, matchRoute } from "./lib/router.js";
 import type {
   AgentDetailResponse,
   AgentListResponse,
   AgentVersionDetailResponse,
-  ArtifactListResponse
+  ArtifactListResponse,
+  ImportDraftResponse
 } from "./lib/types.js";
 import { HomePage } from "./routes/home-page.js";
 import { AgentPage } from "./routes/agent-page.js";
+import { ImportDetailPage } from "./routes/import-detail-page.js";
+import { ImportNewPage } from "./routes/import-new-page.js";
 import { VersionPage } from "./routes/version-page.js";
 import { buildBreadcrumbs } from "./lib/view-models.js";
 
@@ -47,6 +53,16 @@ export function App() {
   const { pathname, navigate } = usePathname();
   const [state, setState] = useState<LoadState>({ status: "loading" });
 
+  async function handleCreateImport(payload: { repositoryUrl: string; ref?: string }) {
+    const result = await createGithubImport(payload);
+    navigate(buildImportDetailPath(result.import.id));
+  }
+
+  async function handlePublishDraft(importId: string) {
+    const result = await publishImportDraft(importId);
+    navigate(buildVersionPath(result.agent.namespace, result.agent.name, result.agent.version));
+  }
+
   useEffect(() => {
     let cancelled = false;
 
@@ -61,6 +77,32 @@ export function App() {
             setState({
               status: "ready",
               view: <HomePage agents={agents.items} onNavigate={navigate} />
+            });
+          }
+          return;
+        }
+
+        if (route.name === "import-new") {
+          setState({
+            status: "ready",
+            view: <ImportNewPage onCreateImport={handleCreateImport} onNavigate={navigate} />
+          });
+          return;
+        }
+
+        if (route.name === "import-detail") {
+          const draft: ImportDraftResponse = await fetchImportDraft(route.importId);
+          if (!cancelled) {
+            setState({
+              status: "ready",
+              view: (
+                <ImportDetailPage
+                  breadcrumbs={buildBreadcrumbs(route)}
+                  draft={draft}
+                  onNavigate={navigate}
+                  onPublishDraft={handlePublishDraft}
+                />
+              )
             });
           }
           return;

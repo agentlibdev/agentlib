@@ -3,7 +3,11 @@ import type {
   AgentListResponse,
   AgentVersionDetailResponse,
   ApiErrorResponse,
-  ArtifactListResponse
+  ArtifactListResponse,
+  GithubImportCreateResponse,
+  GithubImportRequest,
+  ImportDraftResponse,
+  ImportPublishResponse
 } from "./types.js";
 
 export function buildAgentDetailUrl(namespace: string, name: string): string {
@@ -24,6 +28,18 @@ export function buildArtifactsUrl(
   version: string
 ): string {
   return `${buildAgentVersionUrl(namespace, name, version)}/artifacts`;
+}
+
+export function buildGithubImportUrl(): string {
+  return "/api/v1/providers/github/import";
+}
+
+export function buildImportDetailUrl(importId: string): string {
+  return `/api/v1/imports/${encodeURIComponent(importId)}`;
+}
+
+export function buildImportPublishUrl(importId: string): string {
+  return `${buildImportDetailUrl(importId)}/publish`;
 }
 
 export function buildArtifactDownloadUrl(
@@ -70,4 +86,40 @@ export function fetchArtifacts(
   version: string
 ): Promise<ArtifactListResponse> {
   return fetchJson<ArtifactListResponse>(buildArtifactsUrl(namespace, name, version));
+}
+
+export async function createGithubImport(
+  payload: GithubImportRequest
+): Promise<GithubImportCreateResponse> {
+  const response = await fetch(buildGithubImportUrl(), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const body = (await response.json()) as ApiErrorResponse;
+    throw new Error(body.error.message);
+  }
+
+  return (await response.json()) as GithubImportCreateResponse;
+}
+
+export function fetchImportDraft(importId: string): Promise<ImportDraftResponse> {
+  return fetchJson<ImportDraftResponse>(buildImportDetailUrl(importId));
+}
+
+export async function publishImportDraft(importId: string): Promise<ImportPublishResponse> {
+  const response = await fetch(buildImportPublishUrl(importId), {
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    const body = (await response.json()) as ApiErrorResponse;
+    throw new Error(body.error.message);
+  }
+
+  return (await response.json()) as ImportPublishResponse;
 }

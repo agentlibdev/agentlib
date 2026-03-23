@@ -89,6 +89,14 @@ npm run dev:web
 
 The web app runs on `http://127.0.0.1:4173` and proxies `/api` requests to the local Worker.
 
+Current web routes:
+
+- `/` registry home
+- `/agents/:namespace/:name`
+- `/agents/:namespace/:name/versions/:version`
+- `/imports/new`
+- `/imports/:id`
+
 ## Manual publish flow
 
 Start the local API:
@@ -149,6 +157,13 @@ Current behavior:
 - validates the manifest
 - persists an import draft
 - allows manual publish from that draft
+
+Equivalent web flow:
+
+1. Open `http://127.0.0.1:4173/imports/new`
+2. Paste a public GitHub repository URL and optional ref
+3. Inspect the resulting draft at `/imports/:id`
+4. Publish manually from the draft page
 
 Current limitation:
 
