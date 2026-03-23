@@ -89,6 +89,8 @@ npm run dev:web
 
 The web app runs on `http://127.0.0.1:4173` and proxies `/api` requests to the local Worker.
 
+For production deploys, the separate Vite server is no longer required. Cloudflare serves the built `apps/web/dist` bundle from the same Worker that handles `/health` and `/api/*`.
+
 Current web routes:
 
 - `/` registry home
@@ -175,3 +177,17 @@ Current limitation:
 - If local Wrangler commands fail, confirm Node.js `>=20`.
 - If `smoke:local` fails after an interrupted run, reset local state with `npm run d1:reset:local`.
 - If port `8787` is already in use, stop the previous local Worker before starting a new one.
+
+## Cloudflare deploy flow
+
+Production deploy uses one Worker plus static assets:
+
+```bash
+npm run build:deploy
+npm run deploy
+```
+
+That deploy publishes:
+
+- Worker-handled routes: `/health`, `/api/*`
+- asset-backed SPA routes: `/`, `/agents/...`, `/imports/...`

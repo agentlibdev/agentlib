@@ -38,6 +38,7 @@ Completed so far:
 - Phase 6 slice 2: persisted import drafts and manual publish-from-draft endpoints
 - Phase 6 slice 3: draft snapshots now store `README.md` and artifact payloads for publish-from-draft
 - Phase 7 slice 2: web import draft UI for create, inspect, and manual publish
+- Phase 7 slice 3: unified Cloudflare deploy for API plus web assets from one Worker
 
 Recent implementation sequence in `main`:
 
@@ -57,6 +58,7 @@ Recent implementation sequence in `main`:
 - `feat: broaden import draft coverage and errors`
 - `feat: add read-only web app`
 - `feat: add web import drafts flow`
+- `feat: add unified Cloudflare deploy`
 
 ## Next steps
 
@@ -171,6 +173,23 @@ The web import flow exercises the existing API endpoints directly:
 - `POST /api/v1/providers/github/import`
 - `GET /api/v1/imports/:id`
 - `POST /api/v1/imports/:id/publish`
+
+## Unified Cloudflare deploy
+
+`agentlib` now deploys the API Worker and the built web app together from the same `wrangler.jsonc`.
+
+Current deploy shape:
+
+- `/health` and `/api/*` stay in Worker code
+- non-API routes are served from the built `apps/web/dist` assets bundle
+- SPA routes such as `/imports/new` and `/imports/:id` resolve through the web app on the same domain
+
+Deploy flow:
+
+```bash
+npm run build:deploy
+npm run deploy
+```
 
 ## Publish alpha
 
