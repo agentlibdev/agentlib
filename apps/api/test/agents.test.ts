@@ -3,6 +3,43 @@ import test from "node:test";
 import { validateManifest } from "@agentlibdev/agent-schema";
 
 import { createApp } from "../src/create-app.js";
+import { InMemoryAgentRepository } from "../src/in-memory-agent-repository.js";
+
+function createSamplePublishRequest(version = "0.3.0") {
+  return {
+    manifest: {
+      apiVersion: "agentlib.dev/v1alpha1",
+      kind: "Agent",
+      metadata: {
+        namespace: "raul",
+        name: "code-reviewer",
+        version,
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability.",
+        license: "MIT"
+      },
+      spec: {
+        summary: "Reviews pull requests with a focus on correctness and maintainability.",
+        inputs: [],
+        outputs: [],
+        tools: []
+      }
+    },
+    readme: "# Code Reviewer\n",
+    artifacts: [
+      {
+        path: "agent.yaml",
+        mediaType: "application/yaml",
+        content: Buffer.from("apiVersion: agentlib.dev/v1alpha1\nkind: Agent\n").toString("base64")
+      },
+      {
+        path: "README.md",
+        mediaType: "text/markdown",
+        content: Buffer.from("# Code Reviewer\n").toString("base64")
+      }
+    ]
+  };
+}
 
 test("GET /api/v1/agents returns a paginated agent list", async () => {
   const app = createApp({
@@ -285,6 +322,53 @@ test("POST /api/v1/publish creates a new agent version", async () => {
       version: "0.3.0"
     }
   });
+});
+
+test("published artifacts are retrievable through the HTTP read routes", async () => {
+  const repository = new InMemoryAgentRepository();
+  const app = createApp(repository);
+
+  const publishResponse = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/publish", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(createSamplePublishRequest("0.3.1"))
+    })
+  );
+
+  assert.equal(publishResponse.status, 201);
+
+  const artifactsResponse = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/agents/raul/code-reviewer/versions/0.3.1/artifacts")
+  );
+
+  assert.equal(artifactsResponse.status, 200);
+  assert.deepEqual(await artifactsResponse.json(), {
+    items: [
+      {
+        path: "agent.yaml",
+        mediaType: "application/yaml",
+        sizeBytes: 46
+      },
+      {
+        path: "README.md",
+        mediaType: "text/markdown",
+        sizeBytes: 16
+      }
+    ]
+  });
+
+  const downloadResponse = await app.fetch(
+    new Request(
+      "https://agentlib.dev/api/v1/agents/raul/code-reviewer/versions/0.3.1/artifacts/README.md"
+    )
+  );
+
+  assert.equal(downloadResponse.status, 200);
+  assert.equal(downloadResponse.headers.get("content-type"), "text/markdown");
+  assert.equal(await downloadResponse.text(), "# Code Reviewer\n");
 });
 
 test("POST /api/v1/publish returns 409 when the version already exists", async () => {
