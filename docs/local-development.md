@@ -2,6 +2,8 @@
 
 This guide is for developers and contributors working on `agentlib` locally.
 
+If you want the shortest operator-facing path to bring up the full stack and run a basic smoke check, including a VPS-style staging host, see [docs/runbooks/local-and-staging.md](/home/raul/agentlibdev/agentlib/docs/runbooks/local-and-staging.md).
+
 ## Requirements
 
 - Node.js `>=20`

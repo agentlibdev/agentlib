@@ -81,6 +81,8 @@ Immediate focus for the next slice:
 
 For a developer/contributor-focused local setup guide, see [docs/local-development.md](/home/raul/agentlibdev/agentlib/docs/local-development.md).
 
+For a human operator quickstart covering both local bring-up and a VPS-style staging host, see [docs/runbooks/local-and-staging.md](/home/raul/agentlibdev/agentlib/docs/runbooks/local-and-staging.md).
+
 ## Initial persistence shape
 
 The first D1 migration defines:
