@@ -173,7 +173,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [pathname, navigate]);
+  }, [pathname]);
 
   return (
     <main className="shell stack-lg">
