@@ -1,7 +1,7 @@
-import type { AgentRepository } from "../../../packages/core/src/agent-repository.js";
-import type { GithubImportRequest, PublishRequest } from "../../../packages/core/src/agent-record.js";
-import { parseGithubRepositoryUrl } from "../../../packages/providers/src/github-import.js";
-import { validateManifest } from "../../../packages/validation/src/validate-manifest.js";
+import type { AgentRepository } from "@core/agent-repository.js";
+import type { GithubImportRequest, PublishRequest } from "@core/agent-record.js";
+import { parseGithubRepositoryUrl } from "@providers/github-import.js";
+import { validateManifest } from "@validation/validate-manifest.js";
 import type { Env } from "./env.js";
 
 export type App = {

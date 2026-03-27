@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { D1AgentRepository } from "../src/d1-agent-repository.js";
-import type { ArtifactStorage, StoredArtifact } from "../../../packages/storage/src/artifact-storage.js";
-import type { GithubClient } from "../../../packages/providers/src/github-client.js";
+import type { ArtifactStorage, StoredArtifact } from "@storage/artifact-storage.js";
+import type { GithubClient } from "@providers/github-client.js";
 
 type StatementResult<Row> = {
   results: Row[];

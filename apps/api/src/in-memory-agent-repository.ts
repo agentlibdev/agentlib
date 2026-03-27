@@ -9,10 +9,10 @@ import type {
   GithubImportResult,
   PublishRequest,
   PublishResult
-} from "../../../packages/core/src/agent-record.js";
-import type { AgentRepository } from "../../../packages/core/src/agent-repository.js";
-import { validateManifest } from "../../../packages/validation/src/validate-manifest.js";
-import { parseGithubRepositoryUrl } from "../../../packages/providers/src/github-import.js";
+} from "@core/agent-record.js";
+import type { AgentRepository } from "@core/agent-repository.js";
+import { validateManifest } from "@validation/validate-manifest.js";
+import { parseGithubRepositoryUrl } from "@providers/github-import.js";
 
 const seedAgent: AgentDetail = {
   namespace: "raul",

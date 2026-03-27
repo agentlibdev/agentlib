@@ -1,4 +1,4 @@
-import type { ArtifactStorage, StoredArtifact } from "../../../packages/storage/src/artifact-storage.js";
+import type { ArtifactStorage, StoredArtifact } from "@storage/artifact-storage.js";
 
 export class R2ArtifactStorage implements ArtifactStorage {
   constructor(private readonly bucket: R2Bucket) {}

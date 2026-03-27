@@ -9,10 +9,10 @@ import type {
   GithubImportResult,
   PublishRequest,
   PublishResult
-} from "../../../packages/core/src/agent-record.js";
-import type { AgentRepository } from "../../../packages/core/src/agent-repository.js";
-import type { GithubClient } from "../../../packages/providers/src/github-client.js";
-import type { ArtifactStorage } from "../../../packages/storage/src/artifact-storage.js";
+} from "@core/agent-record.js";
+import type { AgentRepository } from "@core/agent-repository.js";
+import type { GithubClient } from "@providers/github-client.js";
+import type { ArtifactStorage } from "@storage/artifact-storage.js";
 
 const LIST_AGENTS_SQL =
   "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description FROM agent_list_view ORDER BY namespace, name LIMIT 50";

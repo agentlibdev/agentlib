@@ -1,5 +1,5 @@
-import type { AgentRepository } from "../../../packages/core/src/agent-repository.js";
-import { FetchGithubClient } from "../../../packages/providers/src/github-client.js";
+import type { AgentRepository } from "@core/agent-repository.js";
+import { FetchGithubClient } from "@providers/github-client.js";
 import type { Env } from "./env.js";
 import { D1AgentRepository } from "./d1-agent-repository.js";
 import { InMemoryAgentRepository } from "./in-memory-agent-repository.js";

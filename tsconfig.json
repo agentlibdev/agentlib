@@ -6,6 +6,13 @@
     "strict": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@core/*": ["packages/core/src/*"],
+      "@providers/*": ["packages/providers/src/*"],
+      "@storage/*": ["packages/storage/src/*"],
+      "@validation/*": ["packages/validation/src/*"]
+    },
     "lib": [
       "ES2022",
       "DOM",

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { FetchGithubClient } from "../../../packages/providers/src/github-client.js";
+import { FetchGithubClient } from "@providers/github-client.js";
 
 test("FetchGithubClient uses a fetch implementation with the correct this binding", async () => {
   const originalFetch = globalThis.fetch;

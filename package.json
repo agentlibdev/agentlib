@@ -9,7 +9,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build:test": "tsc -p tsconfig.test.json",
+    "build:test": "tsc -p tsconfig.test.json && node scripts/post-compile-aliases.mjs",
     "test": "npm run build:test && node --test .test-dist/apps/*/test/*.test.js",
     "typecheck": "tsc --noEmit",
     "dev:web": "npm run dev --workspace @agentlibdev/web",
@@ -32,10 +32,11 @@
   },
   "devDependencies": {
     "@agentlibdev/agent-schema": "file:../agent-schema",
-    "@types/node": "^22.15.30",
     "@cloudflare/workers-types": "^4.20260305.0",
+    "@types/node": "^22.15.30",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.2",
     "wrangler": "^4.38.0"
   }
