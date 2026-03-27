@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { Breadcrumbs } from "../components/breadcrumbs.js";
-import type { ImportDraftResponse } from "../lib/types.js";
+import type { ImportDraftResponse, SessionResponse } from "../lib/types.js";
 import type { Breadcrumb } from "../lib/view-models.js";
 import { canPublishImportDraft, sortImportArtifacts } from "../lib/view-models.js";
 
@@ -10,13 +10,15 @@ type ImportDetailPageProps = {
   breadcrumbs: Breadcrumb[];
   onNavigate: (path: string) => void;
   onPublishDraft: (importId: string) => Promise<void>;
+  session: SessionResponse["session"];
 };
 
 export function ImportDetailPage({
   draft,
   breadcrumbs,
   onNavigate,
-  onPublishDraft
+  onPublishDraft,
+  session
 }: ImportDetailPageProps) {
   const [status, setStatus] = useState<"idle" | "publishing" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -136,10 +138,13 @@ export function ImportDetailPage({
       </section>
 
       <section className="stack-sm">
+        {session ? null : (
+          <p className="toolbar-meta">Sign in first to publish this draft under your namespace.</p>
+        )}
         <div className="action-row">
           <button
             className="primary-action"
-            disabled={!publishable || status === "publishing"}
+            disabled={!publishable || status === "publishing" || !session}
             onClick={() => void handlePublish()}
             type="button"
           >

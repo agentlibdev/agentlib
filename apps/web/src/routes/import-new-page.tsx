@@ -1,12 +1,14 @@
 import { startTransition, useState } from "react";
 import type { FormEvent } from "react";
+import type { SessionResponse } from "../lib/types.js";
 
 type ImportNewPageProps = {
   onCreateImport: (payload: { repositoryUrl: string; ref?: string }) => Promise<void>;
   onNavigate: (path: string) => void;
+  session: SessionResponse["session"];
 };
 
-export function ImportNewPage({ onCreateImport, onNavigate }: ImportNewPageProps) {
+export function ImportNewPage({ onCreateImport, onNavigate, session }: ImportNewPageProps) {
   const [repositoryUrl, setRepositoryUrl] = useState("");
   const [ref, setRef] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "error">("idle");
@@ -37,6 +39,9 @@ export function ImportNewPage({ onCreateImport, onNavigate }: ImportNewPageProps
           This flow validates `agent.yaml`, snapshots the canonical package files, and leaves the
           resulting draft ready for manual publish.
         </p>
+        {session ? null : (
+          <p className="toolbar-meta">Sign in first to import and claim the draft.</p>
+        )}
       </div>
 
       <form className="stack-lg" onSubmit={(event) => void handleSubmit(event)}>

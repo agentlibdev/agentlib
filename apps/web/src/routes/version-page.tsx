@@ -1,6 +1,6 @@
 import { Breadcrumbs } from "../components/breadcrumbs.js";
 import { buildArtifactDownloadUrl } from "../lib/api.js";
-import type { AgentVersionDetailResponse, ArtifactItem } from "../lib/types.js";
+import type { AgentVersionDetailResponse, ArtifactItem, SessionResponse } from "../lib/types.js";
 import type { Breadcrumb } from "../lib/view-models.js";
 
 type VersionPageProps = {
@@ -8,6 +8,7 @@ type VersionPageProps = {
   artifacts: ArtifactItem[];
   breadcrumbs: Breadcrumb[];
   onNavigate: (path: string) => void;
+  session: SessionResponse["session"];
 };
 
 export function VersionPage({ detail, artifacts, breadcrumbs, onNavigate }: VersionPageProps) {
@@ -23,6 +24,8 @@ export function VersionPage({ detail, artifacts, breadcrumbs, onNavigate }: Vers
         <p className="lede">{detail.version.description}</p>
         <div className="meta-row">
           <span>Published {new Date(detail.version.publishedAt).toLocaleString()}</span>
+          <span>Owner {detail.version.ownerHandle}</span>
+          <span>Status {detail.version.lifecycleStatus}</span>
           <span>{detail.version.license ?? "No license set"}</span>
         </div>
       </div>

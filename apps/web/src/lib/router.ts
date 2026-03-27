@@ -1,6 +1,9 @@
 export type RouteMatch =
   | { name: "home" }
+  | { name: "account" }
+  | { name: "creator"; handle: string }
   | { name: "import-new" }
+  | { name: "manual-publish" }
   | { name: "import-detail"; importId: string }
   | { name: "agent"; namespace: string; nameParam: string }
   | { name: "version"; namespace: string; nameParam: string; version: string }
@@ -11,8 +14,22 @@ export function matchRoute(pathname: string): RouteMatch {
     return { name: "home" };
   }
 
+  if (pathname === "/account") {
+    return { name: "account" };
+  }
+
+  const creatorMatch = pathname.match(/^\/creators\/([^/]+)$/);
+  if (creatorMatch) {
+    const [, handle] = creatorMatch;
+    return { name: "creator", handle };
+  }
+
   if (pathname === "/imports/new") {
     return { name: "import-new" };
+  }
+
+  if (pathname === "/publish/manual") {
+    return { name: "manual-publish" };
   }
 
   const importDetailMatch = pathname.match(/^\/imports\/([^/]+)$/);
@@ -52,6 +69,18 @@ export function buildVersionPath(
 
 export function buildImportNewPath(): string {
   return "/imports/new";
+}
+
+export function buildAccountPath(): string {
+  return "/account";
+}
+
+export function buildCreatorPath(handle: string): string {
+  return `/creators/${encodeURIComponent(handle)}`;
+}
+
+export function buildManualPublishPath(): string {
+  return "/publish/manual";
 }
 
 export function buildImportDetailPath(importId: string): string {

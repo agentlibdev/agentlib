@@ -1,7 +1,14 @@
 import type { AgentRepository } from "../../../packages/core/src/agent-repository.js";
-import type { GithubImportRequest, PublishRequest } from "../../../packages/core/src/agent-record.js";
+import type {
+  AccountProfileUpdateInput,
+  AgentLifecycleStatus,
+  GithubImportRequest,
+  PublishRequest
+} from "../../../packages/core/src/agent-record.js";
 import { parseGithubRepositoryUrl } from "../../../packages/providers/src/github-import.js";
 import { validateManifest } from "../../../packages/validation/src/validate-manifest.js";
+import { createAuthGateway } from "./auth.js";
+import type { AuthGateway } from "./auth.js";
 import type { Env } from "./env.js";
 
 export type App = {
@@ -51,7 +58,59 @@ function isValidGithubImportRequest(value: unknown): value is GithubImportReques
   );
 }
 
-export function createApp(repository: AgentRepository): App {
+function isValidLifecycleStatus(value: unknown): value is AgentLifecycleStatus {
+  return value === "active" || value === "deprecated" || value === "unmaintained";
+}
+
+function isValidAccountProfile(value: unknown): value is AccountProfileUpdateInput {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  if (typeof candidate.displayName !== "string" || candidate.displayName.trim().length === 0) {
+    return false;
+  }
+
+  const maybeStrings = [
+    "bio",
+    "pronouns",
+    "company",
+    "location",
+    "websiteUrl",
+    "timeZoneName",
+    "statusEmoji",
+    "statusText"
+  ];
+  for (const key of maybeStrings) {
+    if (candidate[key] !== undefined && typeof candidate[key] !== "string") {
+      return false;
+    }
+  }
+
+  if (typeof candidate.displayLocalTime !== "boolean") {
+    return false;
+  }
+
+  if (
+    !Array.isArray(candidate.socialLinks) ||
+    !candidate.socialLinks.every(
+      (entry) =>
+        typeof entry === "string" &&
+        /^https?:\/\//.test(entry) &&
+        entry.trim().length > 0
+    )
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+export function createApp(
+  repository: AgentRepository,
+  authGateway: AuthGateway = createAuthGateway({})
+): App {
   return {
     async fetch(request): Promise<Response> {
       const url = new URL(request.url);
@@ -60,6 +119,122 @@ export function createApp(repository: AgentRepository): App {
         return json({
           ok: true,
           service: "agentlib-api"
+        });
+      }
+
+      const authStartMatch = url.pathname.match(/^\/api\/v1\/auth\/(github|google)\/start$/);
+      if (request.method === "GET" && authStartMatch) {
+        return authGateway.startAuthorization(authStartMatch[1] as "github" | "google", request);
+      }
+
+      const authCallbackMatch = url.pathname.match(/^\/api\/v1\/auth\/(github|google)\/callback$/);
+      if (request.method === "GET" && authCallbackMatch) {
+        return authGateway.finishAuthorization(
+          authCallbackMatch[1] as "github" | "google",
+          request
+        );
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/auth/logout") {
+        return authGateway.logout(request);
+      }
+
+      const actor = await authGateway.getSession(request);
+
+      if (request.method === "GET" && url.pathname === "/api/v1/session") {
+        return json({
+          session: actor
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/account") {
+        if (!actor) {
+          return json(
+            {
+              error: {
+                code: "authentication_required",
+                message: "Authentication is required for this operation"
+              }
+            },
+            { status: 401 }
+          );
+        }
+
+        if (!repository.getAccountSummary) {
+          return json(
+            {
+              error: {
+                code: "account_unavailable",
+                message: "Account summary is not available"
+              }
+            },
+            { status: 501 }
+          );
+        }
+
+        return json({
+          account: await repository.getAccountSummary(actor)
+        });
+      }
+
+      if (request.method === "PATCH" && url.pathname === "/api/v1/account") {
+        if (!actor) {
+          return json(
+            {
+              error: {
+                code: "authentication_required",
+                message: "Authentication is required for this operation"
+              }
+            },
+            { status: 401 }
+          );
+        }
+
+        if (!repository.updateAccountProfile) {
+          return json(
+            {
+              error: {
+                code: "account_unavailable",
+                message: "Account profile updates are not available"
+              }
+            },
+            { status: 501 }
+          );
+        }
+
+        const payload = (await request.json()) as { profile?: unknown };
+        if (!isValidAccountProfile(payload.profile)) {
+          return json(
+            {
+              error: {
+                code: "invalid_account_profile",
+                message: "Account profile payload is invalid"
+              }
+            },
+            { status: 400 }
+          );
+        }
+
+        return json({
+          account: await repository.updateAccountProfile(payload.profile, actor)
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/highlights") {
+        if (!repository.getRegistryHighlights) {
+          return json(
+            {
+              error: {
+                code: "highlights_unavailable",
+                message: "Registry highlights are not available"
+              }
+            },
+            { status: 501 }
+          );
+        }
+
+        return json({
+          highlights: await repository.getRegistryHighlights()
         });
       }
 
@@ -77,7 +252,7 @@ export function createApp(repository: AgentRepository): App {
       const agentMatch = url.pathname.match(/^\/api\/v1\/agents\/([^/]+)\/([^/]+)$/);
       if (request.method === "GET" && agentMatch) {
         const [, namespace, name] = agentMatch;
-        const detail = await repository.getAgentDetail(namespace, name);
+        const detail = await repository.getAgentDetail(namespace, name, actor);
 
         if (!detail) {
           return json(
@@ -95,10 +270,73 @@ export function createApp(repository: AgentRepository): App {
           agent: {
             namespace: detail.namespace,
             name: detail.name,
-            latestVersion: detail.latestVersion
+            latestVersion: detail.latestVersion,
+            lifecycleStatus: detail.lifecycleStatus,
+            ownerHandle: detail.ownerHandle,
+            downloadCount: detail.downloadCount,
+            pinCount: detail.pinCount,
+            starCount: detail.starCount,
+            viewer: detail.viewer
           },
           versions: detail.versions
         });
+      }
+
+      const agentMetricsMatch = url.pathname.match(/^\/api\/v1\/agents\/([^/]+)\/([^/]+)\/(downloads|pins|stars)$/);
+      if ((request.method === "POST" || request.method === "DELETE") && agentMetricsMatch) {
+        const [, namespace, name, action] = agentMetricsMatch;
+
+        if (action !== "downloads" && !actor) {
+          return json(
+            {
+              error: {
+                code: "authentication_required",
+                message: "Authentication is required for this operation"
+              }
+            },
+            { status: 401 }
+          );
+        }
+
+        try {
+          const result = request.method === "POST"
+            ? action === "downloads"
+              ? await repository.recordAgentDownload?.(namespace, name)
+              : action === "pins"
+                ? await repository.addAgentPin?.(namespace, name, actor!)
+                : await repository.addAgentStar?.(namespace, name, actor!)
+            : action === "pins"
+              ? await repository.removeAgentPin?.(namespace, name, actor!)
+              : await repository.removeAgentStar?.(namespace, name, actor!);
+
+          if (!result) {
+            return json(
+              {
+                error: {
+                  code: "metrics_unavailable",
+                  message: "Agent metrics are not available"
+                }
+              },
+              { status: 501 }
+            );
+          }
+
+          return json({ metrics: result }, { status: request.method === "POST" ? 201 : 200 });
+        } catch (error) {
+          if (error instanceof Error && error.message === "agent_not_found") {
+            return json(
+              {
+                error: {
+                  code: "agent_not_found",
+                  message: "Agent not found"
+                }
+              },
+              { status: 404 }
+            );
+          }
+
+          throw error;
+        }
       }
 
       const versionsMatch = url.pathname.match(/^\/api\/v1\/agents\/([^/]+)\/([^/]+)\/versions$/);
@@ -189,6 +427,10 @@ export function createApp(repository: AgentRepository): App {
           );
         }
 
+        if (repository.recordAgentDownload) {
+          void repository.recordAgentDownload(namespace, name);
+        }
+
         return new Response(new Blob([artifact.content], { type: artifact.mediaType }), {
           headers: {
             "content-type": artifact.mediaType
@@ -211,6 +453,18 @@ export function createApp(repository: AgentRepository): App {
           );
         }
 
+        if (!actor) {
+          return json(
+            {
+              error: {
+                code: "authentication_required",
+                message: "Authentication is required for this operation"
+              }
+            },
+            { status: 401 }
+          );
+        }
+
         if (!validateManifest(payload.manifest)) {
           return json(
             {
@@ -224,7 +478,7 @@ export function createApp(repository: AgentRepository): App {
         }
 
         try {
-          const result = await repository.publishAgentVersion(payload);
+          const result = await repository.publishAgentVersion(payload, actor);
 
           return json(
             {
@@ -250,6 +504,18 @@ export function createApp(repository: AgentRepository): App {
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/providers/github/import") {
+        if (!actor) {
+          return json(
+            {
+              error: {
+                code: "authentication_required",
+                message: "Authentication is required for this operation"
+              }
+            },
+            { status: 401 }
+          );
+        }
+
         const payload = await request.json();
 
         if (!isValidGithubImportRequest(payload)) {
@@ -293,7 +559,7 @@ export function createApp(repository: AgentRepository): App {
           const result = await repository.importGithubRepository({
             repositoryUrl: parsedRepository.repositoryUrl,
             ref: payload.ref
-          });
+          }, actor);
 
           return json({ import: result }, { status: 201 });
         } catch (error) {
@@ -395,6 +661,18 @@ export function createApp(repository: AgentRepository): App {
 
       const importPublishMatch = url.pathname.match(/^\/api\/v1\/imports\/([^/]+)\/publish$/);
       if (request.method === "POST" && importPublishMatch) {
+        if (!actor) {
+          return json(
+            {
+              error: {
+                code: "authentication_required",
+                message: "Authentication is required for this operation"
+              }
+            },
+            { status: 401 }
+          );
+        }
+
         if (!repository.publishImportDraft) {
           return json(
             {
@@ -410,7 +688,7 @@ export function createApp(repository: AgentRepository): App {
         const [, importId] = importPublishMatch;
 
         try {
-          const result = await repository.publishImportDraft(importId);
+          const result = await repository.publishImportDraft(importId, actor);
           return json({ agent: result }, { status: 201 });
         } catch (error) {
           if (error instanceof Error && error.message === "import_not_found") {
@@ -441,6 +719,88 @@ export function createApp(repository: AgentRepository): App {
         }
       }
 
+      const agentLifecycleMatch = url.pathname.match(/^\/api\/v1\/agents\/([^/]+)\/([^/]+)$/);
+      if (request.method === "PATCH" && agentLifecycleMatch) {
+        if (!actor) {
+          return json(
+            {
+              error: {
+                code: "authentication_required",
+                message: "Authentication is required for this operation"
+              }
+            },
+            { status: 401 }
+          );
+        }
+
+        if (!repository.updateAgentLifecycle) {
+          return json(
+            {
+              error: {
+                code: "lifecycle_updates_unavailable",
+                message: "Lifecycle updates are not available"
+              }
+            },
+            { status: 501 }
+          );
+        }
+
+        const payload = await request.json();
+        const lifecycleStatus =
+          payload && typeof payload === "object" && "lifecycleStatus" in payload
+            ? payload.lifecycleStatus
+            : undefined;
+        if (!isValidLifecycleStatus(lifecycleStatus)) {
+          return json(
+            {
+              error: {
+                code: "invalid_lifecycle_request",
+                message: "Lifecycle update request is invalid"
+              }
+            },
+            { status: 400 }
+          );
+        }
+
+        const [, namespace, name] = agentLifecycleMatch;
+
+        try {
+          const result = await repository.updateAgentLifecycle(
+            namespace,
+            name,
+            lifecycleStatus,
+            actor
+          );
+          return json({ agent: result });
+        } catch (error) {
+          if (error instanceof Error && error.message === "agent_not_found") {
+            return json(
+              {
+                error: {
+                  code: "agent_not_found",
+                  message: "Agent not found"
+                }
+              },
+              { status: 404 }
+            );
+          }
+
+          if (error instanceof Error && error.message === "forbidden_namespace") {
+            return json(
+              {
+                error: {
+                  code: "forbidden_namespace",
+                  message: "You do not have access to this namespace"
+                }
+              },
+              { status: 403 }
+            );
+          }
+
+          throw error;
+        }
+      }
+
       return json(
         {
           error: {
@@ -455,11 +815,12 @@ export function createApp(repository: AgentRepository): App {
 }
 
 export function createWorkerApp(env?: Env): ExportedHandler {
+  const authGateway = createAuthGateway(env ?? {});
   return {
     async fetch(request): Promise<Response> {
       const { createRepository } = await import("./create-repository.js");
       const repository = createRepository(env);
-      const app = createApp(repository);
+      const app = createApp(repository, authGateway);
       return app.fetch(request);
     }
   };

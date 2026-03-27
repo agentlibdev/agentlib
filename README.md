@@ -21,6 +21,13 @@ This worktree bootstraps the first registry slice:
 - `POST /api/v1/providers/github/import`
 - `GET /api/v1/imports/:id`
 - `POST /api/v1/imports/:id/publish`
+- `GET /api/v1/session`
+- `GET /api/v1/auth/github/start`
+- `GET /api/v1/auth/github/callback`
+- `GET /api/v1/auth/google/start`
+- `GET /api/v1/auth/google/callback`
+- `POST /api/v1/auth/logout`
+- `PATCH /api/v1/agents/:namespace/:name`
 - initial D1 migration and provider seed SQL
 
 More storage and publish behavior will land in later steps once the public contracts are settled.
@@ -39,6 +46,7 @@ Completed so far:
 - Phase 6 slice 3: draft snapshots now store `README.md` and artifact payloads for publish-from-draft
 - Phase 7 slice 2: web import draft UI for create, inspect, and manual publish
 - Phase 7 slice 3: unified Cloudflare deploy for API plus web assets from one Worker
+- Phase 8 slice 1: ownership and lifecycle backend foundation with authenticated publish/import mutations
 
 Recent implementation sequence in `main`:
 
@@ -135,6 +143,15 @@ npm run d1:list:local
 npm run d1:list:artifacts:local
 ```
 
+To load a richer visual demo with multiple users, agents, artifacts, downloads, pins, and stars:
+
+```bash
+npm run dev:api:local
+npm run populate:demo:local
+```
+
+`populate:demo:local` targets the local API on `http://127.0.0.1:8787`, so it expects the Worker to already be running.
+
 To run the same flow as a single local check:
 
 ```bash
@@ -150,16 +167,21 @@ GET /api/v1/agents/:namespace/:name/versions/:version/artifacts/:path
 
 ## Web app
 
-The first web slice lives in `apps/web` and is read-only. It currently supports:
+The web slice in `apps/web` currently supports:
 
 - home/list view for agents
 - local filter on the catalog view
+- registry momentum summary and top agents
 - agent detail view
 - version detail view
 - breadcrumbs between registry, agent, and version pages
 - artifact download links
 - GitHub import form at `/imports/new`
 - import draft detail and manual publish flow at `/imports/:id`
+- account workspace at `/account`
+- linked OAuth identities
+- editable public profile fields
+- lifecycle controls for owned agents
 
 Local dev:
 
@@ -208,10 +230,30 @@ The current alpha publish route accepts JSON with:
 
 Current behavior:
 
+- requires an authenticated actor
+- constrains new publishes to the authenticated user handle namespace
 - returns `201` for a new version
 - returns `409` if `namespace/name@version` already exists
+- returns `403` if the namespace is owned by someone else
 - returns `400` for invalid payloads
 - returns `400` if the manifest fails AgentLib schema validation
+
+Additional authenticated mutation/readiness endpoints:
+
+- `GET /api/v1/session` returns the current authenticated actor derived by the Worker
+- OAuth start/callback routes exist for GitHub and Google and persist a signed `agentlib_session` cookie
+- `POST /api/v1/auth/logout` clears the signed session cookie
+- `PATCH /api/v1/agents/:namespace/:name` updates lifecycle state to `active`, `deprecated`, or `unmaintained` for the owner
+
+OAuth configuration required in the Worker environment:
+
+- `AUTH_COOKIE_SECRET`
+- `GITHUB_CLIENT_ID`
+- `GITHUB_CLIENT_SECRET`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+
+For local development, copy [`.dev.vars.example`](/home/raul/agentlibdev/agentlib/.worktrees/manual-registry-auth/.dev.vars.example) to [`.dev.vars`](/home/raul/agentlibdev/agentlib/.worktrees/manual-registry-auth/.dev.vars) and fill in the real values. `.dev.vars` is ignored by git.
 
 Artifact metadata is persisted in D1 and artifact bytes are stored in R2. D1 keeps the `r2_key`, media type, size and checksum placeholders; it no longer stores inline artifact payloads.
 

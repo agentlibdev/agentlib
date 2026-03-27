@@ -4,6 +4,11 @@ export type AgentListItem = {
   latestVersion: string;
   title: string;
   description: string;
+  lifecycleStatus: "active" | "deprecated" | "unmaintained";
+  ownerHandle: string;
+  downloadCount: number;
+  pinCount: number;
+  starCount: number;
 };
 
 export type AgentListResponse = {
@@ -25,6 +30,15 @@ export type AgentDetailResponse = {
     namespace: string;
     name: string;
     latestVersion: string;
+    lifecycleStatus: "active" | "deprecated" | "unmaintained";
+    ownerHandle: string;
+    downloadCount: number;
+    pinCount: number;
+    starCount: number;
+    viewer: {
+      hasPinned: boolean;
+      hasStarred: boolean;
+    };
   };
   versions: AgentVersionRecord[];
 };
@@ -39,6 +53,99 @@ export type AgentVersionDetailResponse = {
     license: string | null;
     manifestJson: string;
     publishedAt: string;
+    lifecycleStatus: "active" | "deprecated" | "unmaintained";
+    ownerHandle: string;
+  };
+};
+
+export type SessionResponse = {
+  session: {
+    provider: "github" | "google";
+    subject: string;
+    handle: string;
+    displayName: string;
+    email?: string;
+    avatarUrl?: string;
+  } | null;
+};
+
+export type AccountSummaryResponse = {
+  account: {
+    user: {
+      handle: string;
+      displayName: string;
+      email?: string;
+      avatarUrl?: string;
+      bio?: string;
+      pronouns?: string;
+      company?: string;
+      location?: string;
+      websiteUrl?: string;
+      timeZoneName?: string;
+      displayLocalTime: boolean;
+      statusEmoji?: string;
+      statusText?: string;
+      socialLinks: string[];
+    };
+    identities: Array<{
+      provider: "github" | "google";
+      handle: string;
+      email?: string;
+    }>;
+    ownedAgents: AgentListItem[];
+    stats: {
+      ownedAgentCount: number;
+      totalDownloads: number;
+      totalPins: number;
+      totalStars: number;
+    };
+    topAgent: AgentListItem | null;
+  };
+};
+
+export type AccountProfileUpdateRequest = {
+  profile: {
+    displayName: string;
+    bio?: string;
+    pronouns?: string;
+    company?: string;
+    location?: string;
+    websiteUrl?: string;
+    timeZoneName?: string;
+    displayLocalTime: boolean;
+    statusEmoji?: string;
+    statusText?: string;
+    socialLinks: string[];
+  };
+};
+
+export type RegistryHighlightsResponse = {
+  highlights: {
+    stats: {
+      totalAgents: number;
+      totalDownloads: number;
+      totalPins: number;
+      totalStars: number;
+    };
+    topAgents: AgentListItem[];
+  };
+};
+
+export type AgentMetricsResponse = {
+  metrics: {
+    namespace: string;
+    name: string;
+    downloadCount: number;
+    pinCount: number;
+    starCount: number;
+  };
+};
+
+export type AgentLifecycleUpdateResponse = {
+  agent: {
+    namespace: string;
+    name: string;
+    lifecycleStatus: "active" | "deprecated" | "unmaintained";
   };
 };
 
@@ -50,6 +157,43 @@ export type ArtifactItem = {
 
 export type ArtifactListResponse = {
   items: ArtifactItem[];
+};
+
+export type PublishArtifactInput = {
+  path: string;
+  mediaType: string;
+  content: string;
+};
+
+export type PublishRequest = {
+  manifest: {
+    apiVersion: "agentlib.dev/v1alpha1";
+    kind: "Agent";
+    metadata: {
+      namespace: string;
+      name: string;
+      version: string;
+      title: string;
+      description: string;
+      license?: string;
+    };
+    spec: {
+      summary: string;
+      inputs: [];
+      outputs: [];
+      tools: [];
+    };
+  };
+  readme: string;
+  artifacts: PublishArtifactInput[];
+};
+
+export type PublishResponse = {
+  agent: {
+    namespace: string;
+    name: string;
+    version: string;
+  };
 };
 
 export type ImportDraftArtifact = {

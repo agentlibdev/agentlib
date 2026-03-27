@@ -1,10 +1,26 @@
-import { buildAgentPath, buildImportDetailPath, buildImportNewPath, buildVersionPath } from "./router.js";
+import {
+  buildAccountPath,
+  buildAgentPath,
+  buildCreatorPath,
+  buildImportDetailPath,
+  buildImportNewPath,
+  buildManualPublishPath,
+  buildVersionPath
+} from "./router.js";
 import type { RouteMatch } from "./router.js";
 import type { AgentListItem, ImportDraftArtifact, ImportDraftRecord } from "./types.js";
 
 export type Breadcrumb = {
   label: string;
   path: string;
+};
+
+export type CreatorRank = {
+  handle: string;
+  agentCount: number;
+  totalDownloads: number;
+  totalPins: number;
+  totalStars: number;
 };
 
 export function filterAgents(agents: AgentListItem[], query: string): AgentListItem[] {
@@ -23,9 +39,60 @@ export function filterAgents(agents: AgentListItem[], query: string): AgentListI
   );
 }
 
+export function rankCreators(agents: AgentListItem[]): CreatorRank[] {
+  const byCreator = new Map<string, CreatorRank>();
+
+  for (const agent of agents) {
+    const existing = byCreator.get(agent.ownerHandle) ?? {
+      handle: agent.ownerHandle,
+      agentCount: 0,
+      totalDownloads: 0,
+      totalPins: 0,
+      totalStars: 0
+    };
+
+    existing.agentCount += 1;
+    existing.totalDownloads += agent.downloadCount;
+    existing.totalPins += agent.pinCount;
+    existing.totalStars += agent.starCount;
+    byCreator.set(agent.ownerHandle, existing);
+  }
+
+  return [...byCreator.values()].sort((left, right) => {
+    const leftScore = left.totalDownloads * 3 + left.totalStars * 2 + left.totalPins;
+    const rightScore = right.totalDownloads * 3 + right.totalStars * 2 + right.totalPins;
+    return rightScore - leftScore;
+  });
+}
+
 export function buildBreadcrumbs(route: RouteMatch): Breadcrumb[] {
-  if (route.name === "home" || route.name === "not-found" || route.name === "import-new") {
+  if (
+    route.name === "home" ||
+    route.name === "not-found" ||
+    route.name === "import-new"
+  ) {
     return [{ label: "Registry", path: "/" }];
+  }
+
+  if (route.name === "account") {
+    return [
+      { label: "Registry", path: "/" },
+      { label: "Account", path: buildAccountPath() }
+    ];
+  }
+
+  if (route.name === "creator") {
+    return [
+      { label: "Registry", path: "/" },
+      { label: route.handle, path: buildCreatorPath(route.handle) }
+    ];
+  }
+
+  if (route.name === "manual-publish") {
+    return [
+      { label: "Registry", path: "/" },
+      { label: "Manual publish", path: buildManualPublishPath() }
+    ];
   }
 
   if (route.name === "import-detail") {
