@@ -1,28 +1,53 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useEffectEvent, useState } from "react";
 
 import {
+  buildAuthStartUrl,
   createGithubImport,
+  fetchAccountSummary,
   fetchAgent,
   fetchAgents,
   fetchArtifacts,
+  fetchRegistryHighlights,
+  fetchSession,
   fetchAgentVersion,
   fetchImportDraft,
-  publishImportDraft
+  recordAgentMetric,
+  removeAgentMetric,
+  logoutSession,
+  publishAgent,
+  publishImportDraft,
+  updateAccountProfile,
+  updateAgentLifecycle
 } from "./lib/api.js";
-import { buildAgentPath, buildImportDetailPath, buildVersionPath, matchRoute } from "./lib/router.js";
+import {
+  buildAgentPath,
+  buildAccountPath,
+  buildCreatorPath,
+  buildImportDetailPath,
+  buildVersionPath,
+  matchRoute
+} from "./lib/router.js";
 import type {
   AgentDetailResponse,
   AgentListResponse,
   AgentVersionDetailResponse,
   ArtifactListResponse,
-  ImportDraftResponse
+  ImportDraftResponse,
+  PublishRequest,
+  SessionResponse,
+  AccountSummaryResponse
+  ,
+  RegistryHighlightsResponse
 } from "./lib/types.js";
+import { AccountPage } from "./routes/account-page.js";
 import { HomePage } from "./routes/home-page.js";
 import { AgentPage } from "./routes/agent-page.js";
+import { CreatorPage } from "./routes/creator-page.js";
 import { ImportDetailPage } from "./routes/import-detail-page.js";
 import { ImportNewPage } from "./routes/import-new-page.js";
+import { ManualPublishPage } from "./routes/manual-publish-page.js";
 import { VersionPage } from "./routes/version-page.js";
-import { buildBreadcrumbs } from "./lib/view-models.js";
+import { buildBreadcrumbs, rankCreators } from "./lib/view-models.js";
 
 type LoadState =
   | { status: "loading" }
@@ -38,20 +63,21 @@ function usePathname() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  return {
-    pathname,
-    navigate(nextPath: string) {
-      startTransition(() => {
-        window.history.pushState({}, "", nextPath);
-        setPathname(nextPath);
-      });
-    }
-  };
+  const navigate = useEffectEvent((nextPath: string) => {
+    startTransition(() => {
+      window.history.pushState({}, "", nextPath);
+      setPathname(nextPath);
+    });
+  });
+
+  return { pathname, navigate };
 }
 
 export function App() {
   const { pathname, navigate } = usePathname();
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  const [session, setSession] = useState<SessionResponse["session"]>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   async function handleCreateImport(payload: { repositoryUrl: string; ref?: string }) {
     const result = await createGithubImport(payload);
@@ -63,6 +89,50 @@ export function App() {
     navigate(buildVersionPath(result.agent.namespace, result.agent.name, result.agent.version));
   }
 
+  async function handleManualPublish(payload: PublishRequest) {
+    const result = await publishAgent(payload);
+    navigate(buildVersionPath(result.agent.namespace, result.agent.name, result.agent.version));
+  }
+
+  async function handleUpdateLifecycle(
+    namespace: string,
+    name: string,
+    lifecycleStatus: "active" | "deprecated" | "unmaintained"
+  ) {
+    await updateAgentLifecycle(namespace, name, lifecycleStatus);
+    setRefreshKey((value) => value + 1);
+  }
+
+  async function handleUpdateProfile(payload: Parameters<typeof updateAccountProfile>[0]) {
+    await updateAccountProfile(payload);
+    setRefreshKey((value) => value + 1);
+  }
+
+  async function handleRecordMetric(
+    namespace: string,
+    name: string,
+    action: "pins" | "stars"
+  ) {
+    await recordAgentMetric(namespace, name, action);
+    setRefreshKey((value) => value + 1);
+  }
+
+  async function handleRemoveMetric(
+    namespace: string,
+    name: string,
+    action: "pins" | "stars"
+  ) {
+    await removeAgentMetric(namespace, name, action);
+    setRefreshKey((value) => value + 1);
+  }
+
+  async function handleLogout() {
+    await logoutSession();
+    setSession(null);
+    navigate("/");
+    setRefreshKey((value) => value + 1);
+  }
+
   useEffect(() => {
     let cancelled = false;
 
@@ -71,12 +141,65 @@ export function App() {
       const route = matchRoute(pathname);
 
       try {
+        const currentSession = (await fetchSession()).session;
+        if (!cancelled) {
+          setSession(currentSession);
+        }
+
         if (route.name === "home") {
-          const agents: AgentListResponse = await fetchAgents();
+          const [agents, highlights]: [AgentListResponse, RegistryHighlightsResponse] =
+            await Promise.all([fetchAgents(), fetchRegistryHighlights()]);
           if (!cancelled) {
             setState({
               status: "ready",
-              view: <HomePage agents={agents.items} onNavigate={navigate} />
+              view: (
+                <HomePage
+                  agents={agents.items}
+                  highlights={highlights}
+                  onNavigate={navigate}
+                  session={currentSession}
+                />
+              )
+            });
+          }
+          return;
+        }
+
+        if (route.name === "account") {
+          const account: AccountSummaryResponse = await fetchAccountSummary();
+          if (!cancelled) {
+            setState({
+              status: "ready",
+              view: (
+                <AccountPage
+                  account={account}
+                  breadcrumbs={buildBreadcrumbs(route)}
+                  onNavigate={navigate}
+                  onUpdateProfile={handleUpdateProfile}
+                  onUpdateLifecycle={handleUpdateLifecycle}
+                />
+              )
+            });
+          }
+          return;
+        }
+
+        if (route.name === "creator") {
+          const agents: AgentListResponse = await fetchAgents();
+          const ownedAgents = agents.items.filter((agent) => agent.ownerHandle === route.handle);
+          const creator = rankCreators(ownedAgents)[0] ?? null;
+          if (!cancelled) {
+            setState({
+              status: "ready",
+              view: (
+                <CreatorPage
+                  agents={ownedAgents}
+                  breadcrumbs={buildBreadcrumbs(route)}
+                  creator={creator}
+                  handle={route.handle}
+                  onNavigate={navigate}
+                />
+              )
             });
           }
           return;
@@ -85,7 +208,13 @@ export function App() {
         if (route.name === "import-new") {
           setState({
             status: "ready",
-            view: <ImportNewPage onCreateImport={handleCreateImport} onNavigate={navigate} />
+            view: (
+              <ImportNewPage
+                onCreateImport={handleCreateImport}
+                onNavigate={navigate}
+                session={currentSession}
+              />
+            )
           });
           return;
         }
@@ -101,10 +230,25 @@ export function App() {
                   draft={draft}
                   onNavigate={navigate}
                   onPublishDraft={handlePublishDraft}
+                  session={currentSession}
                 />
               )
             });
           }
+          return;
+        }
+
+        if (route.name === "manual-publish") {
+          setState({
+            status: "ready",
+            view: (
+              <ManualPublishPage
+                onNavigate={navigate}
+                onPublish={handleManualPublish}
+                session={currentSession}
+              />
+            )
+          });
           return;
         }
 
@@ -117,7 +261,11 @@ export function App() {
                 <AgentPage
                   breadcrumbs={buildBreadcrumbs(route)}
                   detail={detail}
+                  onRecordMetric={handleRecordMetric}
+                  onRemoveMetric={handleRemoveMetric}
+                  onUpdateLifecycle={handleUpdateLifecycle}
                   onNavigate={navigate}
+                  session={currentSession}
                 />
               )
             });
@@ -141,6 +289,7 @@ export function App() {
                   breadcrumbs={buildBreadcrumbs(route)}
                   detail={detail}
                   onNavigate={navigate}
+                  session={currentSession}
                 />
               )
             });
@@ -173,7 +322,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [pathname]);
+  }, [pathname, refreshKey]);
 
   return (
     <main className="shell stack-lg">
@@ -181,7 +330,30 @@ export function App() {
         <button className="brand" onClick={() => navigate("/")} type="button">
           AgentLib
         </button>
-        <span className="topbar-note">Read-only registry preview</span>
+        <div className="topbar-actions">
+          <span className="topbar-note">
+            {session ? `Signed in as ${session.handle}` : "Registry preview and manual publish"}
+          </span>
+          {session ? (
+            <>
+              <button className="secondary-action" onClick={() => navigate(buildAccountPath())} type="button">
+                Account
+              </button>
+              <button className="secondary-action" onClick={() => void handleLogout()} type="button">
+                Log out
+              </button>
+            </>
+          ) : (
+            <>
+              <a className="secondary-action" href={buildAuthStartUrl("github", pathname)}>
+                Sign in with GitHub
+              </a>
+              <a className="secondary-action" href={buildAuthStartUrl("google", pathname)}>
+                Sign in with Google
+              </a>
+            </>
+          )}
+        </div>
       </header>
 
       {state.status === "loading" ? (

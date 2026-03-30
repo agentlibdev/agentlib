@@ -1,4 +1,5 @@
 import { createApp } from "./create-app.js";
+import { createAuthGateway } from "./auth.js";
 import { createRepository } from "./create-repository.js";
 import type { Env } from "./env.js";
 
@@ -7,7 +8,7 @@ function isWorkerHandledPath(pathname: string): boolean {
 }
 
 export async function handleRequest(request: Request, env?: Env): Promise<Response> {
-  return createApp(createRepository(env)).fetch(request);
+  return createApp(createRepository(env), createAuthGateway(env ?? {})).fetch(request);
 }
 
 const worker: ExportedHandler<Env> = {

@@ -1,12 +1,19 @@
 import type {
+  AccountProfileUpdateInput,
   AgentDetail,
+  AgentLifecycleStatus,
+  AgentLifecycleUpdateResult,
+  AgentMetricResult,
+  AccountSummary,
   AgentListItem,
   AgentVersionDetail,
   AgentVersionRecord,
+  AuthenticatedUser,
   ArtifactContent,
   ArtifactRecord,
   GithubImportRequest,
   GithubImportResult,
+  RegistryHighlights,
   PublishRequest,
   PublishResult
 } from "@core/agent-record.js";
@@ -15,25 +22,43 @@ import type { GithubClient } from "@providers/github-client.js";
 import type { ArtifactStorage } from "@storage/artifact-storage.js";
 
 const LIST_AGENTS_SQL =
-  "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description FROM agent_list_view ORDER BY namespace, name LIMIT 50";
+  "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description, lifecycle_status AS lifecycleStatus, owner_handle AS ownerHandle FROM agent_list_view ORDER BY namespace, name LIMIT 50";
 
 const GET_AGENT_DETAIL_SQL =
-  "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC";
+  "SELECT a.namespace, a.name, a.latest_version AS latestVersion, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC";
 
 const GET_AGENT_VERSION_DETAIL_SQL =
-  "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1";
+  "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1";
 
 const CHECK_AGENT_SQL =
-  "SELECT id, namespace, name FROM agents WHERE namespace = ?1 AND name = ?2 LIMIT 1";
+  "SELECT id, namespace, name, owner_user_id AS ownerUserId FROM agents WHERE namespace = ?1 AND name = ?2 LIMIT 1";
+
+const GET_USER_BY_IDENTITY_SQL =
+  "SELECT user_id AS id FROM auth_identities WHERE provider = ?1 AND provider_subject = ?2 LIMIT 1";
+
+const GET_USER_BY_EMAIL_SQL =
+  "SELECT id FROM users WHERE email = ?1 LIMIT 1";
+
+const INSERT_USER_SQL =
+  "INSERT INTO users (id, handle, display_name, email, avatar_url, bio, pronouns, company, location, website_url, time_zone_name, display_local_time, status_emoji, status_text, social_links_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, NULL, NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, '[]', ?6, ?7)";
+
+const INSERT_AUTH_IDENTITY_SQL =
+  "INSERT INTO auth_identities (id, user_id, provider, provider_subject, created_at) VALUES (?1, ?2, ?3, ?4, ?5)";
+
+const UPDATE_USER_SQL =
+  "UPDATE users SET handle = ?1, display_name = ?2, email = ?3, avatar_url = ?4, updated_at = ?5 WHERE id = ?6";
 
 const CHECK_AGENT_VERSION_SQL =
   "SELECT av.id FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1";
 
 const INSERT_AGENT_SQL =
-  "INSERT INTO agents (id, namespace, name, latest_version, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)";
+  "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)";
 
 const UPDATE_AGENT_LATEST_SQL =
   "UPDATE agents SET latest_version = ?1, updated_at = ?2 WHERE id = ?3";
+
+const UPDATE_AGENT_LIFECYCLE_SQL =
+  "UPDATE agents SET lifecycle_status = ?1, updated_at = ?2 WHERE id = ?3";
 
 const INSERT_AGENT_VERSION_SQL =
   "INSERT INTO agent_versions (id, agent_id, version, title, description, license, manifest_json, readme_path, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)";
@@ -67,12 +92,74 @@ const GET_IMPORT_DRAFT_SQL =
 const UPDATE_IMPORT_DRAFT_STATUS_SQL =
   "UPDATE import_drafts SET status = ?1, updated_at = ?2 WHERE id = ?3";
 
+const GET_ACCOUNT_USER_SQL =
+  "SELECT id, handle, display_name AS displayName, email, avatar_url AS avatarUrl, bio, pronouns, company, location, website_url AS websiteUrl, time_zone_name AS timeZoneName, display_local_time AS displayLocalTime, status_emoji AS statusEmoji, status_text AS statusText, social_links_json AS socialLinksJson FROM users WHERE id = ?1 LIMIT 1";
+
+const UPDATE_ACCOUNT_PROFILE_SQL =
+  "UPDATE users SET display_name = ?1, bio = ?2, pronouns = ?3, company = ?4, location = ?5, website_url = ?6, time_zone_name = ?7, display_local_time = ?8, status_emoji = ?9, status_text = ?10, social_links_json = ?11, updated_at = ?12 WHERE id = ?13";
+
+const LIST_ACCOUNT_IDENTITIES_SQL =
+  "SELECT ai.provider, u.handle, u.email FROM auth_identities ai JOIN users u ON u.id = ai.user_id WHERE ai.user_id = ?1 ORDER BY ai.provider";
+
+const LIST_OWNED_AGENTS_SQL =
+  "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.title, av.description, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id AND av.version = a.latest_version WHERE a.owner_user_id = ?1 ORDER BY a.namespace, a.name LIMIT 100";
+
+const INSERT_AGENT_METRICS_SQL =
+  "INSERT INTO agent_metrics (agent_id, download_count, pin_count, star_count, updated_at) VALUES (?1, 0, 0, 0, ?2)";
+
+const GET_AGENT_METRICS_SQL =
+  "SELECT download_count AS downloadCount, pin_count AS pinCount, star_count AS starCount FROM agent_metrics WHERE agent_id = ?1 LIMIT 1";
+
+const INSERT_DOWNLOAD_EVENT_SQL =
+  "INSERT INTO agent_download_events (id, agent_id, user_id, occurred_at) VALUES (?1, ?2, NULL, ?3)";
+
+const INCREMENT_DOWNLOAD_COUNT_SQL =
+  "UPDATE agent_metrics SET download_count = download_count + 1, updated_at = ?1 WHERE agent_id = ?2";
+
+const CHECK_AGENT_PIN_SQL =
+  "SELECT id FROM agent_pins WHERE agent_id = ?1 AND user_id = ?2 LIMIT 1";
+
+const INSERT_AGENT_PIN_SQL =
+  "INSERT INTO agent_pins (id, agent_id, user_id, created_at) VALUES (?1, ?2, ?3, ?4)";
+
+const INCREMENT_PIN_COUNT_SQL =
+  "UPDATE agent_metrics SET pin_count = pin_count + 1, updated_at = ?1 WHERE agent_id = ?2";
+
+const DELETE_AGENT_PIN_SQL =
+  "DELETE FROM agent_pins WHERE agent_id = ?1 AND user_id = ?2";
+
+const DECREMENT_PIN_COUNT_SQL =
+  "UPDATE agent_metrics SET pin_count = CASE WHEN pin_count > 0 THEN pin_count - 1 ELSE 0 END, updated_at = ?1 WHERE agent_id = ?2";
+
+const CHECK_AGENT_STAR_SQL =
+  "SELECT id FROM agent_stars WHERE agent_id = ?1 AND user_id = ?2 LIMIT 1";
+
+const INSERT_AGENT_STAR_SQL =
+  "INSERT INTO agent_stars (id, agent_id, user_id, created_at) VALUES (?1, ?2, ?3, ?4)";
+
+const INCREMENT_STAR_COUNT_SQL =
+  "UPDATE agent_metrics SET star_count = star_count + 1, updated_at = ?1 WHERE agent_id = ?2";
+
+const DELETE_AGENT_STAR_SQL =
+  "DELETE FROM agent_stars WHERE agent_id = ?1 AND user_id = ?2";
+
+const DECREMENT_STAR_COUNT_SQL =
+  "UPDATE agent_metrics SET star_count = CASE WHEN star_count > 0 THEN star_count - 1 ELSE 0 END, updated_at = ?1 WHERE agent_id = ?2";
+
+const GET_REGISTRY_TOTALS_SQL =
+  "SELECT COUNT(*) AS totalAgents, COALESCE(SUM(download_count), 0) AS totalDownloads, COALESCE(SUM(pin_count), 0) AS totalPins, COALESCE(SUM(star_count), 0) AS totalStars FROM agents a LEFT JOIN agent_metrics m ON m.agent_id = a.id";
+
+const LIST_TOP_AGENTS_SQL =
+  "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.title, av.description, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle, COALESCE(m.download_count, 0) AS downloadCount, COALESCE(m.pin_count, 0) AS pinCount, COALESCE(m.star_count, 0) AS starCount FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id AND av.version = a.latest_version LEFT JOIN agent_metrics m ON m.agent_id = a.id ORDER BY (COALESCE(m.download_count, 0) * 3) + (COALESCE(m.star_count, 0) * 2) + COALESCE(m.pin_count, 0) DESC, a.updated_at DESC LIMIT 6";
+
 type AgentListRow = AgentListItem;
 
 type AgentDetailRow = {
   namespace: string;
   name: string;
   latestVersion: string;
+  lifecycleStatus: AgentLifecycleStatus;
+  ownerHandle: string;
   version: string;
   title: string;
   description: string;
@@ -88,12 +175,15 @@ type AgentVersionDetailRow = {
   license: string | null;
   manifestJson: string;
   publishedAt: string;
+  lifecycleStatus: AgentLifecycleStatus;
+  ownerHandle: string;
 };
 
 type AgentRow = {
   id: string;
   namespace: string;
   name: string;
+  ownerUserId: string;
 };
 
 type ArtifactRow = ArtifactRecord;
@@ -125,6 +215,43 @@ type ImportDraftRow = {
   url: string;
   owner: string;
   repoName: string;
+};
+
+type AccountUserRow = {
+  id: string;
+  handle: string;
+  displayName: string;
+  email: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+  pronouns: string | null;
+  company: string | null;
+  location: string | null;
+  websiteUrl: string | null;
+  timeZoneName: string | null;
+  displayLocalTime: number;
+  statusEmoji: string | null;
+  statusText: string | null;
+  socialLinksJson: string;
+};
+
+type AccountIdentityRow = {
+  provider: "github" | "google";
+  handle: string;
+  email: string | null;
+};
+
+type AgentMetricsRow = {
+  downloadCount: number;
+  pinCount: number;
+  starCount: number;
+};
+
+type RegistryTotalsRow = {
+  totalAgents: number;
+  totalDownloads: number;
+  totalPins: number;
+  totalStars: number;
 };
 
 function createId(prefix: string, parts: string[]): string {
@@ -160,8 +287,87 @@ function decodeBase64Bytes(content: string): ArrayBuffer {
   return Uint8Array.from(atob(content), (char) => char.charCodeAt(0)).buffer;
 }
 
+async function upsertAuthenticatedUser(
+  db: D1Database,
+  actor: AuthenticatedUser
+): Promise<string> {
+  const now = new Date().toISOString();
+  const existingIdentity = await db
+    .prepare(GET_USER_BY_IDENTITY_SQL)
+    .bind(actor.provider, actor.subject)
+    .all<{ id: string }>();
+
+  const linkedByEmail =
+    !existingIdentity.results[0] && actor.email
+      ? await db.prepare(GET_USER_BY_EMAIL_SQL).bind(actor.email).all<{ id: string }>()
+      : { results: [] };
+
+  const userId =
+    existingIdentity.results[0]?.id ??
+    linkedByEmail.results[0]?.id ??
+    createId("user", [actor.email ?? actor.provider, actor.subject]);
+
+  if (!existingIdentity.results[0] && !linkedByEmail.results[0]) {
+    await db
+      .prepare(INSERT_USER_SQL)
+      .bind(
+        userId,
+        actor.handle,
+        actor.displayName,
+        actor.email ?? null,
+        actor.avatarUrl ?? null,
+        now,
+        now
+      )
+      .run();
+  }
+
+  if (!existingIdentity.results[0]) {
+    await db
+      .prepare(INSERT_AUTH_IDENTITY_SQL)
+      .bind(
+        createId("auth_identity", [actor.provider, actor.subject]),
+        userId,
+        actor.provider,
+        actor.subject,
+        now
+      )
+      .run();
+  }
+
+  if (existingIdentity.results[0] || linkedByEmail.results[0]) {
+    await db
+      .prepare(UPDATE_USER_SQL)
+      .bind(
+        actor.handle,
+        actor.displayName,
+        actor.email ?? null,
+        actor.avatarUrl ?? null,
+        now,
+        userId
+      )
+      .run();
+  }
+
+  return userId;
+}
+
 function toDraftId(externalId: string, resolvedRef: string): string {
   return createId("import_draft_github", [externalId, resolvedRef]);
+}
+
+function normalizeProfileText(value: string | undefined): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+async function getMetricsForAgentId(db: D1Database, agentId: string): Promise<AgentMetricsRow> {
+  const result = await db.prepare(GET_AGENT_METRICS_SQL).bind(agentId).all<AgentMetricsRow>();
+  return result.results[0] ?? {
+    downloadCount: 0,
+    pinCount: 0,
+    starCount: 0
+  };
 }
 
 function mapImportDraftRow(row: ImportDraftRow): GithubImportResult {
@@ -228,14 +434,147 @@ export class D1AgentRepository implements AgentRepository {
 
   async listAgents() {
     const result = await this.db.prepare(LIST_AGENTS_SQL).all<AgentListRow>();
+    const items = await Promise.all(
+      result.results.map(async (item) => {
+        const agentResult = await this.db
+          .prepare(CHECK_AGENT_SQL)
+          .bind(item.namespace, item.name)
+          .all<AgentRow>();
+        const metrics = agentResult.results[0]
+          ? await getMetricsForAgentId(this.db, agentResult.results[0].id)
+          : { downloadCount: 0, pinCount: 0, starCount: 0 };
+
+        return {
+          ...item,
+          ...metrics
+        };
+      })
+    );
 
     return {
-      items: result.results,
+      items,
       nextCursor: null
     };
   }
 
-  async getAgentDetail(namespace: string, name: string): Promise<AgentDetail | null> {
+  async getRegistryHighlights(): Promise<RegistryHighlights> {
+    const totalsResult = await this.db.prepare(GET_REGISTRY_TOTALS_SQL).all<RegistryTotalsRow>();
+    const topAgentsResult = await this.db.prepare(LIST_TOP_AGENTS_SQL).all<AgentListItem>();
+
+    return {
+      stats: totalsResult.results[0] ?? {
+        totalAgents: 0,
+        totalDownloads: 0,
+        totalPins: 0,
+        totalStars: 0
+      },
+      topAgents: topAgentsResult.results
+    };
+  }
+
+  async getAccountSummary(actor: AuthenticatedUser): Promise<AccountSummary> {
+    const userId = await upsertAuthenticatedUser(this.db, actor);
+    const userResult = await this.db.prepare(GET_ACCOUNT_USER_SQL).bind(userId).all<AccountUserRow>();
+    const identitiesResult = await this.db
+      .prepare(LIST_ACCOUNT_IDENTITIES_SQL)
+      .bind(userId)
+      .all<AccountIdentityRow>();
+    const agentsResult = await this.db
+      .prepare(LIST_OWNED_AGENTS_SQL)
+      .bind(userId)
+      .all<AgentListRow>();
+
+    const user = userResult.results[0];
+    const ownedAgents = await Promise.all(
+      agentsResult.results.map(async (item) => {
+        const agentResult = await this.db
+          .prepare(CHECK_AGENT_SQL)
+          .bind(item.namespace, item.name)
+          .all<AgentRow>();
+        const metrics = agentResult.results[0]
+          ? await getMetricsForAgentId(this.db, agentResult.results[0].id)
+          : { downloadCount: 0, pinCount: 0, starCount: 0 };
+
+        return {
+          ...item,
+          ...metrics
+        };
+      })
+    );
+    const topAgent =
+      [...ownedAgents].sort((left, right) => {
+        const leftScore = left.downloadCount * 3 + left.starCount * 2 + left.pinCount;
+        const rightScore = right.downloadCount * 3 + right.starCount * 2 + right.pinCount;
+        return rightScore - leftScore;
+      })[0] ?? null;
+
+    return {
+      user: {
+        handle: user?.handle ?? actor.handle,
+        displayName: user?.displayName ?? actor.displayName,
+        ...(user?.email ? { email: user.email } : {}),
+        ...(user?.avatarUrl ? { avatarUrl: user.avatarUrl } : {}),
+        ...(user?.bio ? { bio: user.bio } : {}),
+        ...(user?.pronouns ? { pronouns: user.pronouns } : {}),
+        ...(user?.company ? { company: user.company } : {}),
+        ...(user?.location ? { location: user.location } : {}),
+        ...(user?.websiteUrl ? { websiteUrl: user.websiteUrl } : {}),
+        ...(user?.timeZoneName ? { timeZoneName: user.timeZoneName } : {}),
+        displayLocalTime: Boolean(user?.displayLocalTime),
+        ...(user?.statusEmoji ? { statusEmoji: user.statusEmoji } : {}),
+        ...(user?.statusText ? { statusText: user.statusText } : {}),
+        socialLinks: user?.socialLinksJson ? JSON.parse(user.socialLinksJson) : []
+      },
+      identities: identitiesResult.results.map((identity) => ({
+        provider: identity.provider,
+        handle: identity.handle,
+        ...(identity.email ? { email: identity.email } : {})
+      })),
+      ownedAgents,
+      stats: {
+        ownedAgentCount: ownedAgents.length,
+        totalDownloads: ownedAgents.reduce((sum, item) => sum + item.downloadCount, 0),
+        totalPins: ownedAgents.reduce((sum, item) => sum + item.pinCount, 0),
+        totalStars: ownedAgents.reduce((sum, item) => sum + item.starCount, 0)
+      },
+      topAgent
+    };
+  }
+
+  async updateAccountProfile(
+    profile: AccountProfileUpdateInput,
+    actor: AuthenticatedUser
+  ): Promise<AccountSummary> {
+    const userId = await upsertAuthenticatedUser(this.db, actor);
+    const now = new Date().toISOString();
+
+    await this.db
+      .prepare(UPDATE_ACCOUNT_PROFILE_SQL)
+      .bind(
+        profile.displayName.trim(),
+        normalizeProfileText(profile.bio),
+        normalizeProfileText(profile.pronouns),
+        normalizeProfileText(profile.company),
+        normalizeProfileText(profile.location),
+        normalizeProfileText(profile.websiteUrl),
+        normalizeProfileText(profile.timeZoneName),
+        profile.displayLocalTime ? 1 : 0,
+        normalizeProfileText(profile.statusEmoji),
+        normalizeProfileText(profile.statusText),
+        JSON.stringify(profile.socialLinks),
+        now,
+        userId
+      )
+      .run();
+
+    return this.getAccountSummary(actor);
+  }
+
+  async getAgentDetail(
+    namespace: string,
+    name: string,
+    actor?: AuthenticatedUser | null
+  ): Promise<AgentDetail | null> {
     const result = await this.db
       .prepare(GET_AGENT_DETAIL_SQL)
       .bind(namespace, name)
@@ -252,11 +591,49 @@ export class D1AgentRepository implements AgentRepository {
       description: row.description,
       publishedAt: row.publishedAt
     }));
+    const agentResult = await this.db
+      .prepare(CHECK_AGENT_SQL)
+      .bind(namespace, name)
+      .all<AgentRow>();
+    const agentRow = agentResult.results[0];
+    const metrics = agentRow
+      ? await getMetricsForAgentId(this.db, agentRow.id)
+      : { downloadCount: 0, pinCount: 0, starCount: 0 };
+    const viewerUserId = actor ? await upsertAuthenticatedUser(this.db, actor) : null;
+    const hasPinned =
+      agentRow && viewerUserId
+        ? Boolean(
+            (
+              await this.db
+                .prepare(CHECK_AGENT_PIN_SQL)
+                .bind(agentRow.id, viewerUserId)
+                .all<{ id: string }>()
+            ).results[0]
+          )
+        : false;
+    const hasStarred =
+      agentRow && viewerUserId
+        ? Boolean(
+            (
+              await this.db
+                .prepare(CHECK_AGENT_STAR_SQL)
+                .bind(agentRow.id, viewerUserId)
+                .all<{ id: string }>()
+            ).results[0]
+          )
+        : false;
 
     return {
       namespace: firstRow.namespace,
       name: firstRow.name,
       latestVersion: firstRow.latestVersion,
+      lifecycleStatus: firstRow.lifecycleStatus,
+      ownerHandle: firstRow.ownerHandle,
+      ...metrics,
+      viewer: {
+        hasPinned,
+        hasStarred
+      },
       versions
     };
   }
@@ -289,7 +666,9 @@ export class D1AgentRepository implements AgentRepository {
       description: row.description,
       license: row.license,
       manifestJson: row.manifestJson,
-      publishedAt: row.publishedAt
+      publishedAt: row.publishedAt,
+      lifecycleStatus: row.lifecycleStatus,
+      ownerHandle: row.ownerHandle
     };
   }
 
@@ -334,9 +713,13 @@ export class D1AgentRepository implements AgentRepository {
     };
   }
 
-  async publishAgentVersion(payload: PublishRequest): Promise<PublishResult> {
+  async publishAgentVersion(
+    payload: PublishRequest,
+    actor: AuthenticatedUser
+  ): Promise<PublishResult> {
     const metadata = payload.manifest.metadata;
     const now = new Date().toISOString();
+    const userId = await upsertAuthenticatedUser(this.db, actor);
 
     const existingVersion = await this.db
       .prepare(CHECK_AGENT_VERSION_SQL)
@@ -352,6 +735,14 @@ export class D1AgentRepository implements AgentRepository {
       .bind(metadata.namespace, metadata.name)
       .all<AgentRow>();
 
+    if (existingAgent.results[0]) {
+      if (existingAgent.results[0].ownerUserId !== userId) {
+        throw new Error("forbidden_namespace");
+      }
+    } else if (metadata.namespace !== actor.handle) {
+      throw new Error("forbidden_namespace");
+    }
+
     const agentId =
       existingAgent.results[0]?.id ??
       createId("agent", [metadata.namespace, metadata.name]);
@@ -359,8 +750,9 @@ export class D1AgentRepository implements AgentRepository {
     if (existingAgent.results.length === 0) {
       await this.db
         .prepare(INSERT_AGENT_SQL)
-        .bind(agentId, metadata.namespace, metadata.name, metadata.version, now, now)
+        .bind(agentId, metadata.namespace, metadata.name, userId, "active", metadata.version, now, now)
         .run();
+      await this.db.prepare(INSERT_AGENT_METRICS_SQL).bind(agentId, now).run();
     } else {
       await this.db.prepare(UPDATE_AGENT_LATEST_SQL).bind(metadata.version, now, agentId).run();
     }
@@ -428,7 +820,10 @@ export class D1AgentRepository implements AgentRepository {
     };
   }
 
-  async importGithubRepository(payload: GithubImportRequest): Promise<GithubImportResult> {
+  async importGithubRepository(
+    payload: GithubImportRequest,
+    actor: AuthenticatedUser
+  ): Promise<GithubImportResult> {
     const repository = await this.githubClient.getRepository(payload.repositoryUrl);
     const importedManifest = await this.githubClient.getManifest(repository, payload.ref);
     const packageFiles = await this.githubClient.getPackageFiles(repository, payload.ref);
@@ -441,6 +836,10 @@ export class D1AgentRepository implements AgentRepository {
         description: string;
       };
     };
+
+    if (metadata.metadata.namespace !== actor.handle) {
+      throw new Error("forbidden_namespace");
+    }
 
     const provider = await this.db.prepare(GET_PROVIDER_SQL).bind("github").all<ProviderRow>();
     const providerId = provider.results[0]?.id;
@@ -536,7 +935,7 @@ export class D1AgentRepository implements AgentRepository {
     return mapImportDraftRow(row);
   }
 
-  async publishImportDraft(id: string): Promise<PublishResult> {
+  async publishImportDraft(id: string, actor: AuthenticatedUser): Promise<PublishResult> {
     const draft = await this.getImportDraft(id);
 
     if (!draft) {
@@ -563,7 +962,7 @@ export class D1AgentRepository implements AgentRepository {
           await this.db.prepare(GET_IMPORT_DRAFT_SQL).bind(id).all<ImportDraftRow>()
         ).results[0]?.artifactsJson ?? "[]"
       )
-    });
+    }, actor);
 
     await this.db
       .prepare(UPDATE_IMPORT_DRAFT_STATUS_SQL)
@@ -571,6 +970,193 @@ export class D1AgentRepository implements AgentRepository {
       .run();
 
     return result;
+  }
+
+  async updateAgentLifecycle(
+    namespace: string,
+    name: string,
+    lifecycleStatus: AgentLifecycleStatus,
+    actor: AuthenticatedUser
+  ): Promise<AgentLifecycleUpdateResult> {
+    const userId = await upsertAuthenticatedUser(this.db, actor);
+    const existingAgent = await this.db.prepare(CHECK_AGENT_SQL).bind(namespace, name).all<AgentRow>();
+    const row = existingAgent.results[0];
+
+    if (!row) {
+      throw new Error("agent_not_found");
+    }
+
+    if (row.ownerUserId !== userId) {
+      throw new Error("forbidden_namespace");
+    }
+
+    await this.db
+      .prepare(UPDATE_AGENT_LIFECYCLE_SQL)
+      .bind(lifecycleStatus, new Date().toISOString(), row.id)
+      .run();
+
+    return {
+      namespace,
+      name,
+      lifecycleStatus
+    };
+  }
+
+  async recordAgentDownload(namespace: string, name: string): Promise<AgentMetricResult> {
+    const existingAgent = await this.db.prepare(CHECK_AGENT_SQL).bind(namespace, name).all<AgentRow>();
+    const row = existingAgent.results[0];
+
+    if (!row) {
+      throw new Error("agent_not_found");
+    }
+
+    const now = new Date().toISOString();
+    await this.db
+      .prepare(INSERT_DOWNLOAD_EVENT_SQL)
+      .bind(createId("download", [namespace, name, now]), row.id, now)
+      .run();
+    await this.db.prepare(INCREMENT_DOWNLOAD_COUNT_SQL).bind(now, row.id).run();
+
+    const metrics = await getMetricsForAgentId(this.db, row.id);
+    return {
+      namespace,
+      name,
+      ...metrics
+    };
+  }
+
+  async addAgentPin(
+    namespace: string,
+    name: string,
+    actor: AuthenticatedUser
+  ): Promise<AgentMetricResult> {
+    const userId = await upsertAuthenticatedUser(this.db, actor);
+    const existingAgent = await this.db.prepare(CHECK_AGENT_SQL).bind(namespace, name).all<AgentRow>();
+    const row = existingAgent.results[0];
+
+    if (!row) {
+      throw new Error("agent_not_found");
+    }
+
+    const existingPin = await this.db
+      .prepare(CHECK_AGENT_PIN_SQL)
+      .bind(row.id, userId)
+      .all<{ id: string }>();
+
+    if (!existingPin.results[0]) {
+      const now = new Date().toISOString();
+      await this.db
+        .prepare(INSERT_AGENT_PIN_SQL)
+        .bind(createId("pin", [userId, row.id]), row.id, userId, now)
+        .run();
+      await this.db.prepare(INCREMENT_PIN_COUNT_SQL).bind(now, row.id).run();
+    }
+
+    const metrics = await getMetricsForAgentId(this.db, row.id);
+    return {
+      namespace,
+      name,
+      ...metrics
+    };
+  }
+
+  async addAgentStar(
+    namespace: string,
+    name: string,
+    actor: AuthenticatedUser
+  ): Promise<AgentMetricResult> {
+    const userId = await upsertAuthenticatedUser(this.db, actor);
+    const existingAgent = await this.db.prepare(CHECK_AGENT_SQL).bind(namespace, name).all<AgentRow>();
+    const row = existingAgent.results[0];
+
+    if (!row) {
+      throw new Error("agent_not_found");
+    }
+
+    const existingStar = await this.db
+      .prepare(CHECK_AGENT_STAR_SQL)
+      .bind(row.id, userId)
+      .all<{ id: string }>();
+
+    if (!existingStar.results[0]) {
+      const now = new Date().toISOString();
+      await this.db
+        .prepare(INSERT_AGENT_STAR_SQL)
+        .bind(createId("star", [userId, row.id]), row.id, userId, now)
+        .run();
+      await this.db.prepare(INCREMENT_STAR_COUNT_SQL).bind(now, row.id).run();
+    }
+
+    const metrics = await getMetricsForAgentId(this.db, row.id);
+    return {
+      namespace,
+      name,
+      ...metrics
+    };
+  }
+
+  async removeAgentPin(
+    namespace: string,
+    name: string,
+    actor: AuthenticatedUser
+  ): Promise<AgentMetricResult> {
+    const userId = await upsertAuthenticatedUser(this.db, actor);
+    const existingAgent = await this.db.prepare(CHECK_AGENT_SQL).bind(namespace, name).all<AgentRow>();
+    const row = existingAgent.results[0];
+
+    if (!row) {
+      throw new Error("agent_not_found");
+    }
+
+    const existingPin = await this.db
+      .prepare(CHECK_AGENT_PIN_SQL)
+      .bind(row.id, userId)
+      .all<{ id: string }>();
+
+    if (existingPin.results[0]) {
+      const now = new Date().toISOString();
+      await this.db.prepare(DELETE_AGENT_PIN_SQL).bind(row.id, userId).run();
+      await this.db.prepare(DECREMENT_PIN_COUNT_SQL).bind(now, row.id).run();
+    }
+
+    const metrics = await getMetricsForAgentId(this.db, row.id);
+    return {
+      namespace,
+      name,
+      ...metrics
+    };
+  }
+
+  async removeAgentStar(
+    namespace: string,
+    name: string,
+    actor: AuthenticatedUser
+  ): Promise<AgentMetricResult> {
+    const userId = await upsertAuthenticatedUser(this.db, actor);
+    const existingAgent = await this.db.prepare(CHECK_AGENT_SQL).bind(namespace, name).all<AgentRow>();
+    const row = existingAgent.results[0];
+
+    if (!row) {
+      throw new Error("agent_not_found");
+    }
+
+    const existingStar = await this.db
+      .prepare(CHECK_AGENT_STAR_SQL)
+      .bind(row.id, userId)
+      .all<{ id: string }>();
+
+    if (existingStar.results[0]) {
+      const now = new Date().toISOString();
+      await this.db.prepare(DELETE_AGENT_STAR_SQL).bind(row.id, userId).run();
+      await this.db.prepare(DECREMENT_STAR_COUNT_SQL).bind(now, row.id).run();
+    }
+
+    const metrics = await getMetricsForAgentId(this.db, row.id);
+    return {
+      namespace,
+      name,
+      ...metrics
+    };
   }
 }
 

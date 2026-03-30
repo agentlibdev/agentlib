@@ -5,6 +5,14 @@ import { validateManifest } from "@agentlibdev/agent-schema";
 import { createApp } from "../src/create-app.js";
 import { InMemoryAgentRepository } from "../src/in-memory-agent-repository.js";
 
+const authenticatedHeaders = {
+  "content-type": "application/json",
+  "x-agentlib-auth-provider": "github",
+  "x-agentlib-auth-subject": "123456",
+  "x-agentlib-auth-handle": "raul",
+  "x-agentlib-auth-name": "Raul"
+};
+
 function createSamplePublishRequest(version = "0.3.0") {
   return {
     manifest: {
@@ -50,7 +58,12 @@ test("GET /api/v1/agents returns a paginated agent list", async () => {
           name: "code-reviewer",
           latestVersion: "0.1.0",
           title: "Code Reviewer",
-          description: "Reviews pull requests for correctness and maintainability."
+          description: "Reviews pull requests for correctness and maintainability.",
+          lifecycleStatus: "active",
+          ownerHandle: "raul",
+          downloadCount: 0,
+          pinCount: 0,
+          starCount: 0
         }
       ],
       nextCursor: null
@@ -75,7 +88,12 @@ test("GET /api/v1/agents returns a paginated agent list", async () => {
         name: "code-reviewer",
         latestVersion: "0.1.0",
         title: "Code Reviewer",
-        description: "Reviews pull requests for correctness and maintainability."
+        description: "Reviews pull requests for correctness and maintainability.",
+        lifecycleStatus: "active",
+        ownerHandle: "raul",
+        downloadCount: 0,
+        pinCount: 0,
+        starCount: 0
       }
     ],
     page: {
@@ -97,10 +115,19 @@ test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
     publishAgentVersion: async () => {
       throw new Error("unexpected");
     },
-    getAgentDetail: async () => ({
+    getAgentDetail: async (_namespace, _name, actor) => ({
       namespace: "raul",
       name: "code-reviewer",
       latestVersion: "0.1.0",
+      lifecycleStatus: "active",
+      ownerHandle: "raul",
+      downloadCount: 42,
+      pinCount: 7,
+      starCount: 15,
+      viewer: {
+        hasPinned: actor?.handle === "raul",
+        hasStarred: actor?.handle === "raul"
+      },
       versions: [
         {
           version: "0.1.0",
@@ -121,7 +148,16 @@ test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
     agent: {
       namespace: "raul",
       name: "code-reviewer",
-      latestVersion: "0.1.0"
+      latestVersion: "0.1.0",
+      lifecycleStatus: "active",
+      ownerHandle: "raul",
+      downloadCount: 42,
+      pinCount: 7,
+      starCount: 15,
+      viewer: {
+        hasPinned: false,
+        hasStarred: false
+      }
     },
     versions: [
       {
@@ -131,6 +167,62 @@ test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
         publishedAt: "2026-03-11T00:00:00.000Z"
       }
     ]
+  });
+});
+
+test("GET /api/v1/agents/:namespace/:name includes viewer social state for the authenticated user", async () => {
+  const app = createApp({
+    listAgents: async () => ({
+      items: [],
+      nextCursor: null
+    }),
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
+    getAgentDetail: async (_namespace, _name, actor) => ({
+      namespace: "raul",
+      name: "code-reviewer",
+      latestVersion: "0.1.0",
+      lifecycleStatus: "active",
+      ownerHandle: "raul",
+      downloadCount: 42,
+      pinCount: 7,
+      starCount: 15,
+      viewer: {
+        hasPinned: actor?.handle === "raul",
+        hasStarred: actor?.handle === "raul"
+      },
+      versions: []
+    })
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/agents/raul/code-reviewer", {
+      headers: authenticatedHeaders
+    })
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    agent: {
+      namespace: "raul",
+      name: "code-reviewer",
+      latestVersion: "0.1.0",
+      lifecycleStatus: "active",
+      ownerHandle: "raul",
+      downloadCount: 42,
+      pinCount: 7,
+      starCount: 15,
+      viewer: {
+        hasPinned: true,
+        hasStarred: true
+      }
+    },
+    versions: []
   });
 });
 
@@ -236,7 +328,9 @@ test("GET /api/v1/agents/:namespace/:name/versions/:version returns one version 
       description: "Reviews pull requests for correctness and maintainability.",
       license: "MIT",
       manifestJson: "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.2.0\"}}",
-      publishedAt: "2026-03-11T10:00:00.000Z"
+      publishedAt: "2026-03-11T10:00:00.000Z",
+      lifecycleStatus: "active",
+      ownerHandle: "raul"
     })
   });
 
@@ -254,7 +348,9 @@ test("GET /api/v1/agents/:namespace/:name/versions/:version returns one version 
       description: "Reviews pull requests for correctness and maintainability.",
       license: "MIT",
       manifestJson: "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.2.0\"}}",
-      publishedAt: "2026-03-11T10:00:00.000Z"
+      publishedAt: "2026-03-11T10:00:00.000Z",
+      lifecycleStatus: "active",
+      ownerHandle: "raul"
     }
   });
 });
@@ -270,19 +366,20 @@ test("POST /api/v1/publish creates a new agent version", async () => {
     getAgentVersionDetail: async () => null,
     listArtifacts: async () => null,
     getArtifactContent: async () => null,
-    publishAgentVersion: async (payload) => ({
+    publishAgentVersion: async (payload, actor) => {
+      assert.equal(actor.handle, "raul");
+      return {
       namespace: payload.manifest.metadata.namespace,
       name: payload.manifest.metadata.name,
       version: payload.manifest.metadata.version
-    })
+      };
+    }
   });
 
   const response = await app.fetch(
     new Request("https://agentlib.dev/api/v1/publish", {
       method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
+      headers: authenticatedHeaders,
       body: JSON.stringify({
         manifest: {
           apiVersion: "agentlib.dev/v1alpha1",
@@ -331,9 +428,7 @@ test("published artifacts are retrievable through the HTTP read routes", async (
   const publishResponse = await app.fetch(
     new Request("https://agentlib.dev/api/v1/publish", {
       method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
+      headers: authenticatedHeaders,
       body: JSON.stringify(createSamplePublishRequest("0.3.1"))
     })
   );
@@ -390,9 +485,7 @@ test("POST /api/v1/publish returns 409 when the version already exists", async (
   const response = await app.fetch(
     new Request("https://agentlib.dev/api/v1/publish", {
       method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
+      headers: authenticatedHeaders,
       body: JSON.stringify({
         manifest: {
           apiVersion: "agentlib.dev/v1alpha1",
@@ -445,9 +538,7 @@ test("POST /api/v1/publish returns 400 for an invalid payload", async () => {
   const response = await app.fetch(
     new Request("https://agentlib.dev/api/v1/publish", {
       method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
+      headers: authenticatedHeaders,
       body: JSON.stringify({
         manifest: {
           apiVersion: "agentlib.dev/v1alpha1",
@@ -498,9 +589,7 @@ test("POST /api/v1/publish returns 400 for a schema-invalid manifest", async () 
   const response = await app.fetch(
     new Request("https://agentlib.dev/api/v1/publish", {
       method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
+      headers: authenticatedHeaders,
       body: JSON.stringify({
         manifest: {
           apiVersion: "agentlib.dev/v1alpha1",
@@ -530,6 +619,294 @@ test("POST /api/v1/publish returns 400 for a schema-invalid manifest", async () 
     error: {
       code: "invalid_manifest",
       message: "Manifest failed schema validation"
+    }
+  });
+});
+
+test("GET /api/v1/session returns the authenticated user from request headers", async () => {
+  const app = createApp(new InMemoryAgentRepository());
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/session", {
+      headers: authenticatedHeaders
+    })
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    session: {
+      provider: "github",
+      subject: "123456",
+      handle: "raul",
+      displayName: "Raul"
+    }
+  });
+});
+
+test("GET /api/v1/account returns linked identities and owned agents for the session user", async () => {
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
+    getAccountSummary: async (actor) => {
+      assert.equal(actor.handle, "raul");
+      return {
+        user: {
+          handle: "raul",
+          displayName: "Raul",
+          email: "raul@example.com",
+          displayLocalTime: false,
+          socialLinks: []
+        },
+        identities: [
+          { provider: "github", handle: "raul", email: "raul@example.com" },
+          { provider: "google", handle: "raul", email: "raul@example.com" }
+        ],
+        ownedAgents: [
+          {
+            namespace: "raul",
+            name: "code-reviewer",
+            latestVersion: "0.4.0",
+            title: "Code Reviewer",
+            description: "Reviews pull requests for correctness and maintainability.",
+            lifecycleStatus: "active",
+            ownerHandle: "raul",
+            downloadCount: 28,
+            pinCount: 4,
+            starCount: 9
+          }
+        ],
+        stats: {
+          ownedAgentCount: 1,
+          totalDownloads: 28,
+          totalPins: 4,
+          totalStars: 9
+        },
+        topAgent: {
+          namespace: "raul",
+          name: "code-reviewer",
+          latestVersion: "0.4.0",
+          title: "Code Reviewer",
+          description: "Reviews pull requests for correctness and maintainability.",
+          lifecycleStatus: "active",
+          ownerHandle: "raul",
+          downloadCount: 28,
+          pinCount: 4,
+          starCount: 9
+        }
+      };
+    }
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/account", {
+      headers: authenticatedHeaders
+    })
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    account: {
+      user: {
+        handle: "raul",
+        displayName: "Raul",
+        email: "raul@example.com",
+        displayLocalTime: false,
+        socialLinks: []
+      },
+      identities: [
+        { provider: "github", handle: "raul", email: "raul@example.com" },
+        { provider: "google", handle: "raul", email: "raul@example.com" }
+      ],
+      ownedAgents: [
+        {
+          namespace: "raul",
+          name: "code-reviewer",
+          latestVersion: "0.4.0",
+          title: "Code Reviewer",
+          description: "Reviews pull requests for correctness and maintainability.",
+          lifecycleStatus: "active",
+          ownerHandle: "raul",
+          downloadCount: 28,
+          pinCount: 4,
+          starCount: 9
+        }
+      ],
+      stats: {
+        ownedAgentCount: 1,
+        totalDownloads: 28,
+        totalPins: 4,
+        totalStars: 9
+      },
+      topAgent: {
+        namespace: "raul",
+        name: "code-reviewer",
+        latestVersion: "0.4.0",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability.",
+        lifecycleStatus: "active",
+        ownerHandle: "raul",
+        downloadCount: 28,
+        pinCount: 4,
+        starCount: 9
+      }
+    }
+  });
+});
+
+test("POST /api/v1/publish returns 401 when the request is anonymous", async () => {
+  const app = createApp(new InMemoryAgentRepository());
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/publish", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(createSamplePublishRequest("0.3.2"))
+    })
+  );
+
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), {
+    error: {
+      code: "authentication_required",
+      message: "Authentication is required for this operation"
+    }
+  });
+});
+
+test("PATCH /api/v1/agents/:namespace/:name updates lifecycle status for the owner", async () => {
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
+    updateAgentLifecycle: async (namespace, name, lifecycleStatus, actor) => {
+      assert.equal(actor.handle, "raul");
+      return {
+        namespace,
+        name,
+        lifecycleStatus
+      };
+    }
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/agents/raul/code-reviewer", {
+      method: "PATCH",
+      headers: authenticatedHeaders,
+      body: JSON.stringify({
+        lifecycleStatus: "deprecated"
+      })
+    })
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    agent: {
+      namespace: "raul",
+      name: "code-reviewer",
+      lifecycleStatus: "deprecated"
+    }
+  });
+});
+
+test("DELETE /api/v1/agents/:namespace/:name/pins removes a pin idempotently", async () => {
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
+    removeAgentPin: async (namespace, name, actor) => {
+      assert.equal(namespace, "raul");
+      assert.equal(name, "code-reviewer");
+      assert.equal(actor.handle, "raul");
+      return {
+        namespace,
+        name,
+        downloadCount: 42,
+        pinCount: 2,
+        starCount: 15
+      };
+    }
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/agents/raul/code-reviewer/pins", {
+      method: "DELETE",
+      headers: authenticatedHeaders
+    })
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    metrics: {
+      namespace: "raul",
+      name: "code-reviewer",
+      downloadCount: 42,
+      pinCount: 2,
+      starCount: 15
+    }
+  });
+});
+
+test("DELETE /api/v1/agents/:namespace/:name/stars removes a star idempotently", async () => {
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
+    removeAgentStar: async (namespace, name, actor) => {
+      assert.equal(namespace, "raul");
+      assert.equal(name, "code-reviewer");
+      assert.equal(actor.handle, "raul");
+      return {
+        namespace,
+        name,
+        downloadCount: 42,
+        pinCount: 7,
+        starCount: 14
+      };
+    }
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/agents/raul/code-reviewer/stars", {
+      method: "DELETE",
+      headers: authenticatedHeaders
+    })
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    metrics: {
+      namespace: "raul",
+      name: "code-reviewer",
+      downloadCount: 42,
+      pinCount: 7,
+      starCount: 14
     }
   });
 });
@@ -600,9 +977,7 @@ test("POST /api/v1/providers/github/import returns a persisted import draft", as
   const response = await app.fetch(
     new Request("https://agentlib.dev/api/v1/providers/github/import", {
       method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
+      headers: authenticatedHeaders,
       body: JSON.stringify({
         repositoryUrl: "https://github.com/raul/code-reviewer"
       })
@@ -780,7 +1155,8 @@ test("POST /api/v1/imports/:id/publish publishes a draft manually", async () => 
 
   const response = await app.fetch(
     new Request("https://agentlib.dev/api/v1/imports/import_draft_github_123456_main/publish", {
-      method: "POST"
+      method: "POST",
+      headers: authenticatedHeaders
     })
   );
 
@@ -813,9 +1189,7 @@ test("POST /api/v1/providers/github/import returns 400 for an invalid payload", 
   const response = await app.fetch(
     new Request("https://agentlib.dev/api/v1/providers/github/import", {
       method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
+      headers: authenticatedHeaders,
       body: JSON.stringify({
         repositoryUrl: "https://gitlab.com/raul/code-reviewer"
       })
@@ -850,9 +1224,7 @@ test("POST /api/v1/providers/github/import returns 422 for a schema-invalid mani
   const response = await app.fetch(
     new Request("https://agentlib.dev/api/v1/providers/github/import", {
       method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
+      headers: authenticatedHeaders,
       body: JSON.stringify({
         repositoryUrl: "https://github.com/raul/code-reviewer",
         ref: "main"
@@ -888,9 +1260,7 @@ test("POST /api/v1/providers/github/import returns 502 for a GitHub rate limit",
   const response = await app.fetch(
     new Request("https://agentlib.dev/api/v1/providers/github/import", {
       method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
+      headers: authenticatedHeaders,
       body: JSON.stringify({
         repositoryUrl: "https://github.com/raul/code-reviewer",
         ref: "main"

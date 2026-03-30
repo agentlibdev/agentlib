@@ -7,7 +7,16 @@ import type {
   GithubImportCreateResponse,
   GithubImportRequest,
   ImportDraftResponse,
-  ImportPublishResponse
+  ImportPublishResponse,
+  PublishRequest,
+  PublishResponse,
+  SessionResponse,
+  AgentLifecycleUpdateResponse,
+  AccountSummaryResponse
+  ,
+  AccountProfileUpdateRequest,
+  RegistryHighlightsResponse,
+  AgentMetricsResponse
 } from "./types.js";
 
 export function buildAgentDetailUrl(namespace: string, name: string): string {
@@ -34,6 +43,29 @@ export function buildGithubImportUrl(): string {
   return "/api/v1/providers/github/import";
 }
 
+export function buildPublishUrl(): string {
+  return "/api/v1/publish";
+}
+
+export function buildSessionUrl(): string {
+  return "/api/v1/session";
+}
+
+export function buildAccountUrl(): string {
+  return "/api/v1/account";
+}
+
+export function buildAuthStartUrl(
+  provider: "github" | "google",
+  redirectTo: string
+): string {
+  return `/api/v1/auth/${provider}/start?redirectTo=${encodeURIComponent(redirectTo)}`;
+}
+
+export function buildLogoutUrl(): string {
+  return "/api/v1/auth/logout";
+}
+
 export function buildImportDetailUrl(importId: string): string {
   return `/api/v1/imports/${encodeURIComponent(importId)}`;
 }
@@ -51,6 +83,22 @@ export function buildArtifactDownloadUrl(
   return `${buildArtifactsUrl(namespace, name, version)}/${encodeURIComponent(path)}`;
 }
 
+export function buildAgentLifecycleUrl(namespace: string, name: string): string {
+  return buildAgentDetailUrl(namespace, name);
+}
+
+export function buildHighlightsUrl(): string {
+  return "/api/v1/highlights";
+}
+
+export function buildAgentMetricActionUrl(
+  namespace: string,
+  name: string,
+  action: "downloads" | "pins" | "stars"
+): string {
+  return `${buildAgentDetailUrl(namespace, name)}/${action}`;
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
 
@@ -64,6 +112,18 @@ async function fetchJson<T>(url: string): Promise<T> {
 
 export function fetchAgents(): Promise<AgentListResponse> {
   return fetchJson<AgentListResponse>("/api/v1/agents");
+}
+
+export function fetchSession(): Promise<SessionResponse> {
+  return fetchJson<SessionResponse>(buildSessionUrl());
+}
+
+export function fetchAccountSummary(): Promise<AccountSummaryResponse> {
+  return fetchJson<AccountSummaryResponse>(buildAccountUrl());
+}
+
+export function fetchRegistryHighlights(): Promise<RegistryHighlightsResponse> {
+  return fetchJson<RegistryHighlightsResponse>(buildHighlightsUrl());
 }
 
 export function fetchAgent(namespace: string, name: string): Promise<AgentDetailResponse> {
@@ -107,6 +167,23 @@ export async function createGithubImport(
   return (await response.json()) as GithubImportCreateResponse;
 }
 
+export async function publishAgent(payload: PublishRequest): Promise<PublishResponse> {
+  const response = await fetch(buildPublishUrl(), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const body = (await response.json()) as ApiErrorResponse;
+    throw new Error(body.error.message);
+  }
+
+  return (await response.json()) as PublishResponse;
+}
+
 export function fetchImportDraft(importId: string): Promise<ImportDraftResponse> {
   return fetchJson<ImportDraftResponse>(buildImportDetailUrl(importId));
 }
@@ -122,4 +199,88 @@ export async function publishImportDraft(importId: string): Promise<ImportPublis
   }
 
   return (await response.json()) as ImportPublishResponse;
+}
+
+export async function updateAgentLifecycle(
+  namespace: string,
+  name: string,
+  lifecycleStatus: "active" | "deprecated" | "unmaintained"
+): Promise<AgentLifecycleUpdateResponse> {
+  const response = await fetch(buildAgentLifecycleUrl(namespace, name), {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ lifecycleStatus })
+  });
+
+  if (!response.ok) {
+    const body = (await response.json()) as ApiErrorResponse;
+    throw new Error(body.error.message);
+  }
+
+  return (await response.json()) as AgentLifecycleUpdateResponse;
+}
+
+export async function updateAccountProfile(
+  payload: AccountProfileUpdateRequest
+): Promise<AccountSummaryResponse> {
+  const response = await fetch(buildAccountUrl(), {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const body = (await response.json()) as ApiErrorResponse;
+    throw new Error(body.error.message);
+  }
+
+  return (await response.json()) as AccountSummaryResponse;
+}
+
+export async function recordAgentMetric(
+  namespace: string,
+  name: string,
+  action: "downloads" | "pins" | "stars"
+): Promise<AgentMetricsResponse> {
+  const response = await fetch(buildAgentMetricActionUrl(namespace, name, action), {
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    const body = (await response.json()) as ApiErrorResponse;
+    throw new Error(body.error.message);
+  }
+
+  return (await response.json()) as AgentMetricsResponse;
+}
+
+export async function removeAgentMetric(
+  namespace: string,
+  name: string,
+  action: "pins" | "stars"
+): Promise<AgentMetricsResponse> {
+  const response = await fetch(buildAgentMetricActionUrl(namespace, name, action), {
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    const body = (await response.json()) as ApiErrorResponse;
+    throw new Error(body.error.message);
+  }
+
+  return (await response.json()) as AgentMetricsResponse;
+}
+
+export async function logoutSession(): Promise<void> {
+  const response = await fetch(buildLogoutUrl(), {
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    throw new Error("Logout failed");
+  }
 }

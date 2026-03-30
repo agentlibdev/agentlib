@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildImportDetailPath, buildImportNewPath, matchRoute } from "../src/lib/router.js";
+import {
+  buildAccountPath,
+  buildCreatorPath,
+  buildImportDetailPath,
+  buildImportNewPath,
+  buildManualPublishPath,
+  matchRoute
+} from "../src/lib/router.js";
 
 test("matchRoute resolves the home page", () => {
   assert.deepEqual(matchRoute("/"), {
@@ -32,6 +39,25 @@ test("matchRoute resolves the import creation page", () => {
   });
 });
 
+test("matchRoute resolves the manual publish page", () => {
+  assert.deepEqual(matchRoute("/publish/manual"), {
+    name: "manual-publish"
+  });
+});
+
+test("matchRoute resolves the account page", () => {
+  assert.deepEqual(matchRoute("/account"), {
+    name: "account"
+  });
+});
+
+test("matchRoute resolves a creator page", () => {
+  assert.deepEqual(matchRoute("/creators/raul"), {
+    name: "creator",
+    handle: "raul"
+  });
+});
+
 test("matchRoute resolves an import draft page", () => {
   assert.deepEqual(matchRoute("/imports/import_draft_github_123"), {
     name: "import-detail",
@@ -45,6 +71,18 @@ test("buildImportNewPath builds the import creation path", () => {
 
 test("buildImportDetailPath builds the import detail path", () => {
   assert.equal(buildImportDetailPath("import_draft_github_123"), "/imports/import_draft_github_123");
+});
+
+test("buildManualPublishPath builds the manual publish path", () => {
+  assert.equal(buildManualPublishPath(), "/publish/manual");
+});
+
+test("buildAccountPath builds the account path", () => {
+  assert.equal(buildAccountPath(), "/account");
+});
+
+test("buildCreatorPath builds the creator path", () => {
+  assert.equal(buildCreatorPath("raul"), "/creators/raul");
 });
 
 test("matchRoute returns not-found for unknown paths", () => {

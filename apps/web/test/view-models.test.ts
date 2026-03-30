@@ -10,14 +10,24 @@ const agents: AgentListItem[] = [
     name: "code-reviewer",
     latestVersion: "0.4.0",
     title: "Code Reviewer",
-    description: "Reviews pull requests for correctness and maintainability."
+    description: "Reviews pull requests for correctness and maintainability.",
+    lifecycleStatus: "active",
+    ownerHandle: "raul",
+    downloadCount: 0,
+    pinCount: 0,
+    starCount: 0
   },
   {
     namespace: "raul",
     name: "docs-writer",
     latestVersion: "0.2.0",
     title: "Docs Writer",
-    description: "Produces concise contributor-facing documentation."
+    description: "Produces concise contributor-facing documentation.",
+    lifecycleStatus: "active",
+    ownerHandle: "raul",
+    downloadCount: 0,
+    pinCount: 0,
+    starCount: 0
   }
 ];
 
