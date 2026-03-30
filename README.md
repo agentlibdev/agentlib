@@ -132,6 +132,8 @@ npm run d1:list:local
 
 This creates a local D1 state directory, applies the initial schema, seeds providers, and inserts sample agent/version records for local development.
 
+The local seed scripts are safe to re-run on the same local D1 state. They are intended as idempotent fixtures, not as a data refresh mechanism.
+
 To exercise the HTTP publish path against local D1:
 
 ```bash
