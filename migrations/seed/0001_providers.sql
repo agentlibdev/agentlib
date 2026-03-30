@@ -1,4 +1,4 @@
-INSERT INTO providers (id, slug) VALUES
+INSERT OR IGNORE INTO providers (id, slug) VALUES
   ('provider_manual', 'manual'),
   ('provider_github', 'github'),
   ('provider_gitlab', 'gitlab'),
