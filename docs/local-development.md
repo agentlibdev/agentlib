@@ -113,9 +113,15 @@ In a second terminal:
 
 ```bash
 npm run publish:sample:local
+npm run publish:example:local -- ../agent-examples
 npm run list:artifacts:local -- raul code-reviewer 0.3.0
 npm run download:artifact:local -- raul code-reviewer 0.3.0 README.md
 ```
+
+Use the helpers like this:
+
+- `publish:sample:local` publishes the fixed smoke fixture used by the repo.
+- `publish:example:local` publishes a real example package directory, such as the root fixture in `../agent-examples`.
 
 Useful read endpoints after publish:
 

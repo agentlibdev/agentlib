@@ -72,6 +72,9 @@ const LIST_ARTIFACTS_SQL =
 const GET_ARTIFACT_SQL =
   "SELECT art.path, art.media_type AS mediaType, art.r2_key AS r2Key FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 AND art.path = ?4 LIMIT 1";
 
+const LIST_ARTIFACT_CONTENTS_SQL =
+  "SELECT art.path, art.media_type AS mediaType, art.r2_key AS r2Key FROM agents a JOIN agent_versions av ON av.agent_id = a.id JOIN artifacts art ON art.agent_version_id = av.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 ORDER BY art.path";
+
 const GET_PROVIDER_SQL = "SELECT id FROM providers WHERE slug = ?1 LIMIT 1";
 
 const CHECK_SOURCE_REPOSITORY_SQL =
@@ -711,6 +714,38 @@ export class D1AgentRepository implements AgentRepository {
       mediaType: row.mediaType,
       content: artifact.content
     };
+  }
+
+  async listArtifactContents(
+    namespace: string,
+    name: string,
+    version: string
+  ): Promise<ArtifactContent[] | null> {
+    const result = await this.db
+      .prepare(LIST_ARTIFACT_CONTENTS_SQL)
+      .bind(namespace, name, version)
+      .all<ArtifactLookupRow>();
+
+    if (result.results.length === 0) {
+      return null;
+    }
+
+    const artifacts = await Promise.all(
+      result.results.map(async (row) => {
+        const artifact = await this.storage.getArtifact(row.r2Key);
+        if (!artifact) {
+          return null;
+        }
+
+        return {
+          path: row.path,
+          mediaType: row.mediaType,
+          content: artifact.content
+        };
+      })
+    );
+
+    return artifacts.filter((artifact): artifact is ArtifactContent => artifact !== null);
   }
 
   async publishAgentVersion(

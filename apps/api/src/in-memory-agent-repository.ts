@@ -248,6 +248,14 @@ export class InMemoryAgentRepository implements AgentRepository {
     return artifacts?.find((artifact) => artifact.path === path) ?? null;
   }
 
+  async listArtifactContents(
+    namespace: string,
+    name: string,
+    version: string
+  ): Promise<ArtifactContent[] | null> {
+    return this.artifacts.get(`${namespace}/${name}/${version}`) ?? null;
+  }
+
   async publishAgentVersion(
     payload: PublishRequest,
     actor: AuthenticatedUser

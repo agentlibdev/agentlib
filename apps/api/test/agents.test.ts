@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { validateManifest } from "@agentlibdev/agent-schema";
+import { unzipSync } from "fflate";
 
 import { createApp } from "../src/create-app.js";
 import { InMemoryAgentRepository } from "../src/in-memory-agent-repository.js";
@@ -1400,4 +1401,127 @@ test("GET /api/v1/agents/:namespace/:name/versions/:version/artifacts/:path retu
       message: "Artifact not found"
     }
   });
+});
+
+test("GET /api/v1/agents/:namespace/:name/versions/:version/artifacts/:path/content returns a text preview payload", async () => {
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => ({
+      path: "README.md",
+      mediaType: "text/markdown",
+      content: new TextEncoder().encode("# docs-writer\n").buffer
+    }),
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    }
+  });
+
+  const response = await app.fetch(
+    new Request(
+      "https://agentlib.dev/api/v1/agents/raul/docs-writer/versions/0.1.0/artifacts/README.md/content"
+    )
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    artifact: {
+      path: "README.md",
+      mediaType: "text/markdown",
+      sizeBytes: 14
+    },
+    preview: {
+      kind: "markdown",
+      text: "# docs-writer\n"
+    }
+  });
+});
+
+test("GET /api/v1/agents/:namespace/:name/versions/:version/artifacts/:path/content rejects binary preview", async () => {
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => ({
+      path: "logo.png",
+      mediaType: "image/png",
+      content: Uint8Array.from([137, 80, 78, 71]).buffer
+    }),
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    }
+  });
+
+  const response = await app.fetch(
+    new Request(
+      "https://agentlib.dev/api/v1/agents/raul/docs-writer/versions/0.1.0/artifacts/logo.png/content"
+    )
+  );
+
+  assert.equal(response.status, 415);
+  assert.deepEqual(await response.json(), {
+    error: {
+      code: "artifact_preview_not_supported",
+      message: "Artifact preview is only available for text-based files"
+    }
+  });
+});
+
+test("GET /api/v1/agents/:namespace/:name/versions/:version/download.zip returns a full artifact archive", async () => {
+  let downloadRecorded = false;
+
+  const app = createApp({
+    listAgents: async () => ({ items: [], nextCursor: null }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
+    listArtifactContents: async () => [
+      {
+        path: "README.md",
+        mediaType: "text/markdown",
+        content: new TextEncoder().encode("# docs-writer\n").buffer
+      },
+      {
+        path: "agent.json",
+        mediaType: "application/json",
+        content: new TextEncoder().encode('{"name":"docs-writer"}').buffer
+      }
+    ],
+    recordAgentDownload: async () => {
+      downloadRecorded = true;
+      return {
+        namespace: "raul",
+        name: "docs-writer",
+        downloadCount: 1,
+        pinCount: 0,
+        starCount: 0
+      };
+    },
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    }
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/agents/raul/docs-writer/versions/0.1.0/download.zip")
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "application/zip");
+  assert.match(
+    response.headers.get("content-disposition") ?? "",
+    /attachment; filename="raul-docs-writer-0\.1\.0\.zip"/
+  );
+  assert.equal(downloadRecorded, true);
+
+  const archive = unzipSync(new Uint8Array(await response.arrayBuffer()));
+  assert.equal(new TextDecoder().decode(archive["README.md"]), "# docs-writer\n");
+  assert.equal(new TextDecoder().decode(archive["agent.json"]), '{"name":"docs-writer"}');
 });

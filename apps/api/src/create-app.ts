@@ -1,4 +1,5 @@
 import type { AgentRepository } from "@core/agent-repository.js";
+import { zipSync } from "fflate";
 import type {
   AccountProfileUpdateInput,
   AgentLifecycleStatus,
@@ -14,6 +15,8 @@ import type { Env } from "./env.js";
 export type App = {
   fetch(request: Request): Promise<Response>;
 };
+
+const textDecoder = new TextDecoder();
 
 function json(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -105,6 +108,65 @@ function isValidAccountProfile(value: unknown): value is AccountProfileUpdateInp
   }
 
   return true;
+}
+
+function isTextPreviewableArtifact(path: string, mediaType: string): boolean {
+  const normalizedPath = path.toLowerCase();
+  const normalizedMediaType = mediaType.toLowerCase();
+
+  if (normalizedMediaType.startsWith("text/")) {
+    return true;
+  }
+
+  return [
+    "application/json",
+    "application/ld+json",
+    "application/yaml",
+    "application/x-yaml",
+    "application/xml"
+  ].includes(normalizedMediaType) || [
+    ".md",
+    ".markdown",
+    ".txt",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".xml",
+    ".log"
+  ].some((extension) => normalizedPath.endsWith(extension));
+}
+
+function resolveArtifactPreviewKind(
+  path: string,
+  mediaType: string
+): "markdown" | "json" | "text" {
+  const normalizedPath = path.toLowerCase();
+  const normalizedMediaType = mediaType.toLowerCase();
+
+  if (
+    normalizedMediaType === "text/markdown" ||
+    normalizedPath.endsWith(".md") ||
+    normalizedPath.endsWith(".markdown")
+  ) {
+    return "markdown";
+  }
+
+  if (
+    normalizedMediaType.includes("json") ||
+    normalizedPath.endsWith(".json")
+  ) {
+    return "json";
+  }
+
+  return "text";
+}
+
+function buildVersionBundleFilename(namespace: string, name: string, version: string): string {
+  return `${namespace}-${name}-${version}.zip`.replace(/[^a-zA-Z0-9._-]+/g, "-");
+}
+
+function shouldRecordDownload(url: URL): boolean {
+  return url.searchParams.get("tracked") !== "1";
 }
 
 export function createApp(
@@ -403,6 +465,110 @@ export function createApp(
         return json({ items: artifacts });
       }
 
+      const artifactPreviewMatch = url.pathname.match(
+        /^\/api\/v1\/agents\/([^/]+)\/([^/]+)\/versions\/([^/]+)\/artifacts\/(.+)\/content$/
+      );
+      if (request.method === "GET" && artifactPreviewMatch) {
+        const [, namespace, name, version, path] = artifactPreviewMatch;
+        const artifact = await repository.getArtifactContent(
+          namespace,
+          name,
+          version,
+          decodeURIComponent(path)
+        );
+
+        if (!artifact) {
+          return json(
+            {
+              error: {
+                code: "artifact_not_found",
+                message: "Artifact not found"
+              }
+            },
+            { status: 404 }
+          );
+        }
+
+        if (!isTextPreviewableArtifact(artifact.path, artifact.mediaType)) {
+          return json(
+            {
+              error: {
+                code: "artifact_preview_not_supported",
+                message: "Artifact preview is only available for text-based files"
+              }
+            },
+            { status: 415 }
+          );
+        }
+
+        return json({
+          artifact: {
+            path: artifact.path,
+            mediaType: artifact.mediaType,
+            sizeBytes: artifact.content.byteLength
+          },
+          preview: {
+            kind: resolveArtifactPreviewKind(artifact.path, artifact.mediaType),
+            text: textDecoder.decode(artifact.content)
+          }
+        });
+      }
+
+      const versionBundleMatch = url.pathname.match(
+        /^\/api\/v1\/agents\/([^/]+)\/([^/]+)\/versions\/([^/]+)\/download\.zip$/
+      );
+      if (request.method === "GET" && versionBundleMatch) {
+        const [, namespace, name, version] = versionBundleMatch;
+
+        if (!repository.listArtifactContents) {
+          return json(
+            {
+              error: {
+                code: "bundle_download_unavailable",
+                message: "Artifact bundle download is not available"
+              }
+            },
+            { status: 501 }
+          );
+        }
+
+        const artifacts = await repository.listArtifactContents(namespace, name, version);
+        if (!artifacts || artifacts.length === 0) {
+          return json(
+            {
+              error: {
+                code: "bundle_not_found",
+                message: "Artifact bundle not found"
+              }
+            },
+            { status: 404 }
+          );
+        }
+
+        const archive = zipSync(
+          Object.fromEntries(
+            artifacts.map((artifact) => [artifact.path, new Uint8Array(artifact.content)])
+          )
+        );
+        const archiveBody = new Uint8Array(archive.byteLength);
+        archiveBody.set(archive);
+
+        if (shouldRecordDownload(url) && repository.recordAgentDownload) {
+          void repository.recordAgentDownload(namespace, name);
+        }
+
+        return new Response(archiveBody.buffer, {
+          headers: {
+            "content-type": "application/zip",
+            "content-disposition": `attachment; filename="${buildVersionBundleFilename(
+              namespace,
+              name,
+              version
+            )}"`
+          }
+        });
+      }
+
       const artifactDownloadMatch = url.pathname.match(
         /^\/api\/v1\/agents\/([^/]+)\/([^/]+)\/versions\/([^/]+)\/artifacts\/(.+)$/
       );
@@ -427,7 +593,7 @@ export function createApp(
           );
         }
 
-        if (repository.recordAgentDownload) {
+        if (shouldRecordDownload(url) && repository.recordAgentDownload) {
           void repository.recordAgentDownload(namespace, name);
         }
 

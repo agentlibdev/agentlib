@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { Activity, Link2, UserCircle2 } from "lucide-react";
 
 import { Breadcrumbs } from "../components/breadcrumbs.js";
 import { buildAgentPath, buildCreatorPath } from "../lib/router.js";
@@ -72,299 +73,231 @@ export function AccountPage({
   }
 
   return (
-    <section className="panel stack-lg">
-      <Breadcrumbs items={breadcrumbs} onNavigate={onNavigate} />
-
-      <div className="stack-xs">
-        <p className="eyebrow">Account</p>
-        <h1>{user.displayName}</h1>
-        <p className="lede">
-          {user.handle}
-          {user.email ? ` · ${user.email}` : ""}
-        </p>
-        <p>
-          {account.account.stats.totalDownloads} downloads, {account.account.stats.totalStars} stars
-          and {account.account.stats.totalPins} pins across your catalog.
-        </p>
-      </div>
-
-      <div className="split-layout">
-        <section className="stack-sm">
-          <h2>Profile snapshot</h2>
-          <div className="detail-list">
-            <p>
-              <strong>Status</strong>
-              <span>
-                {user.statusEmoji ? `${user.statusEmoji} ` : ""}
-                {user.statusText || "No status yet"}
-              </span>
-            </p>
-            <p>
-              <strong>Bio</strong>
-              <span>{user.bio || "Add a short bio to explain what you publish."}</span>
-            </p>
-            <p>
-              <strong>Location</strong>
-              <span>{user.location || "Not set"}</span>
-            </p>
-            <p>
-              <strong>Website</strong>
-              <span>{user.websiteUrl || "Not set"}</span>
-            </p>
-          </div>
-        </section>
-
-        <section className="stack-sm">
-          <h2>Linked identities</h2>
-          <div className="detail-list">
-            {account.account.identities.map((identity) => (
-              <p key={`${identity.provider}:${identity.handle}`}>
-                <strong>{identity.provider}</strong>
-                <span>
-                  {identity.handle}
-                  {identity.email ? ` · ${identity.email}` : ""}
-                </span>
+    <section className="page-stack">
+      <section className="app-panel p-6 sm:p-8">
+        <div className="page-stack">
+          <Breadcrumbs items={breadcrumbs} onNavigate={onNavigate} />
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="space-y-4">
+              <p className="eyebrow">Account</p>
+              <h1 className="text-4xl font-semibold tracking-tight text-slate-950 dark:text-white">
+                {user.displayName}
+              </h1>
+              <p className="lede">
+                {user.handle}
+                {user.email ? ` · ${user.email}` : ""}
               </p>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      <div className="split-layout">
-        <section className="stack-sm">
-          <div className="section-head">
-            <h2>Your stats</h2>
-            <span>{account.account.stats.ownedAgentCount} agents</span>
-          </div>
-          <div className="detail-list">
-            <p>
-              <strong>{account.account.stats.totalDownloads}</strong>
-              <span>Total downloads</span>
-            </p>
-            <p>
-              <strong>{account.account.stats.totalStars}</strong>
-              <span>Total stars</span>
-            </p>
-            <p>
-              <strong>{account.account.stats.totalPins}</strong>
-              <span>Total pins</span>
-            </p>
-            <p>
-              <strong>{account.account.topAgent?.title ?? "No top agent yet"}</strong>
-              <span>
-                {account.account.topAgent
-                  ? `${account.account.topAgent.downloadCount} downloads`
-                  : "Publish or populate demo data to surface one"}
-              </span>
-            </p>
-            <p>
-              <strong>{creatorRank ? `#1 ${creatorRank.handle}` : "No creator rank yet"}</strong>
-              <span>
-                {creatorRank
-                  ? `${creatorRank.totalDownloads} downloads across your own catalog`
-                  : "Create a catalog to enter the ranking"}
-              </span>
-            </p>
-            <p>
-              <strong>Creator page</strong>
-              <button
-                className="secondary-action"
-                onClick={() => onNavigate(buildCreatorPath(user.handle))}
-                type="button"
-              >
-                Open public creator page
-              </button>
-            </p>
-          </div>
-        </section>
-
-        <section className="stack-sm">
-          <h2>Quick actions</h2>
-          <div className="detail-list">
-            <p>
-              <strong>Manual registry</strong>
-              <button className="secondary-action" onClick={() => onNavigate("/publish/manual")} type="button">
-                New package
-              </button>
-            </p>
-            <p>
-              <strong>GitHub import</strong>
-              <button className="secondary-action" onClick={() => onNavigate("/imports/new")} type="button">
-                Import repo
-              </button>
-            </p>
-          </div>
-        </section>
-      </div>
-
-      <section className="stack-sm">
-        <h2>Edit profile</h2>
-        <form className="stack-sm" onSubmit={(event) => void handleSubmit(event)}>
-          <label className="search-field">
-            <span>Name</span>
-            <input
-              onChange={(event) => setForm((current) => ({ ...current, displayName: event.target.value }))}
-              type="text"
-              value={form.displayName}
-            />
-          </label>
-          <label className="search-field">
-            <span>Bio</span>
-            <textarea
-              onChange={(event) => setForm((current) => ({ ...current, bio: event.target.value }))}
-              rows={3}
-              value={form.bio}
-            />
-          </label>
-          <div className="split-layout">
-            <label className="search-field">
-              <span>Pronouns</span>
-              <input
-                onChange={(event) => setForm((current) => ({ ...current, pronouns: event.target.value }))}
-                type="text"
-                value={form.pronouns}
-              />
-            </label>
-            <label className="search-field">
-              <span>Company</span>
-              <input
-                onChange={(event) => setForm((current) => ({ ...current, company: event.target.value }))}
-                type="text"
-                value={form.company}
-              />
-            </label>
-          </div>
-          <div className="split-layout">
-            <label className="search-field">
-              <span>Location</span>
-              <input
-                onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))}
-                type="text"
-                value={form.location}
-              />
-            </label>
-            <label className="search-field">
-              <span>Website</span>
-              <input
-                onChange={(event) => setForm((current) => ({ ...current, websiteUrl: event.target.value }))}
-                type="url"
-                value={form.websiteUrl}
-              />
-            </label>
-          </div>
-          <div className="split-layout">
-            <label className="search-field">
-              <span>Time zone</span>
-              <input
-                onChange={(event) => setForm((current) => ({ ...current, timeZoneName: event.target.value }))}
-                type="text"
-                value={form.timeZoneName}
-              />
-            </label>
-            <label className="search-field">
-              <span>Status</span>
-              <div className="action-row">
-                <input
-                  onChange={(event) => setForm((current) => ({ ...current, statusEmoji: event.target.value }))}
-                  placeholder="🎯"
-                  type="text"
-                  value={form.statusEmoji}
-                />
-                <input
-                  onChange={(event) => setForm((current) => ({ ...current, statusText: event.target.value }))}
-                  placeholder="What are you focusing on?"
-                  type="text"
-                  value={form.statusText}
-                />
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="metric-card">
+                  <p className="eyebrow">Downloads</p>
+                  <p className="mt-3 text-3xl font-semibold text-slate-950 dark:text-white">
+                    {account.account.stats.totalDownloads}
+                  </p>
+                </div>
+                <div className="metric-card">
+                  <p className="eyebrow">Stars</p>
+                  <p className="mt-3 text-3xl font-semibold text-slate-950 dark:text-white">
+                    {account.account.stats.totalStars}
+                  </p>
+                </div>
+                <div className="metric-card">
+                  <p className="eyebrow">Pins</p>
+                  <p className="mt-3 text-3xl font-semibold text-slate-950 dark:text-white">
+                    {account.account.stats.totalPins}
+                  </p>
+                </div>
               </div>
-            </label>
+            </div>
+
+            <aside className="app-panel-muted p-5">
+              <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                <div className="flex items-center gap-2 text-slate-900 dark:text-white">
+                  <UserCircle2 className="h-4 w-4 text-cyan-500 dark:text-cyan-300" />
+                  <span className="font-medium">Public profile</span>
+                </div>
+                <p>{user.bio || "Add a short bio to explain what you publish."}</p>
+                <p>{user.location || "Location not set"}</p>
+                <button
+                  className="app-button-secondary w-full"
+                  onClick={() => onNavigate(buildCreatorPath(user.handle))}
+                  type="button"
+                >
+                  Open public creator page
+                </button>
+              </div>
+            </aside>
           </div>
-          <label className="search-field">
-            <span>
-              <input
-                checked={form.displayLocalTime}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, displayLocalTime: event.target.checked }))
-                }
-                type="checkbox"
-              />
-              Display local time
-            </span>
-          </label>
-          <div className="stack-xs">
-            <span>Social links</span>
-            {form.socialLinks.map((link, index) => (
-              <input
-                key={`social-${index}`}
-                onChange={(event) =>
-                  setForm((current) => {
-                    const next = [...current.socialLinks];
-                    next[index] = event.target.value;
-                    return { ...current, socialLinks: next };
-                  })
-                }
-                placeholder={`https://social-profile-${index + 1}.example`}
-                type="url"
-                value={link}
-              />
-            ))}
-          </div>
-          <button className="primary-action" disabled={saving} type="submit">
-            {saving ? "Saving..." : "Save profile"}
-          </button>
-        </form>
+        </div>
       </section>
 
-      <section className="stack-sm">
-        <div className="section-head">
-          <h2>Your agents</h2>
-          <span>{account.account.ownedAgents.length} items</span>
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <form className="space-y-6" onSubmit={(event) => void handleSubmit(event)}>
+          <section className="app-panel p-6 sm:p-8">
+            <div className="mb-6 flex items-center gap-2">
+              <UserCircle2 className="h-5 w-5 text-cyan-500 dark:text-cyan-300" />
+              <h2 className="text-2xl font-semibold text-slate-950 dark:text-white">Edit profile</h2>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block space-y-2 md:col-span-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Name</span>
+                <input className="app-input" onChange={(event) => setForm((current) => ({ ...current, displayName: event.target.value }))} type="text" value={form.displayName} />
+              </label>
+              <label className="block space-y-2 md:col-span-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Bio</span>
+                <textarea className="app-textarea" onChange={(event) => setForm((current) => ({ ...current, bio: event.target.value }))} rows={3} value={form.bio} />
+              </label>
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Pronouns</span>
+                <input className="app-input" onChange={(event) => setForm((current) => ({ ...current, pronouns: event.target.value }))} type="text" value={form.pronouns} />
+              </label>
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Company</span>
+                <input className="app-input" onChange={(event) => setForm((current) => ({ ...current, company: event.target.value }))} type="text" value={form.company} />
+              </label>
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Location</span>
+                <input className="app-input" onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))} type="text" value={form.location} />
+              </label>
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Website</span>
+                <input className="app-input" onChange={(event) => setForm((current) => ({ ...current, websiteUrl: event.target.value }))} type="url" value={form.websiteUrl} />
+              </label>
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Time zone</span>
+                <input className="app-input" onChange={(event) => setForm((current) => ({ ...current, timeZoneName: event.target.value }))} type="text" value={form.timeZoneName} />
+              </label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Status emoji</span>
+                  <input className="app-input" onChange={(event) => setForm((current) => ({ ...current, statusEmoji: event.target.value }))} placeholder="🎯" type="text" value={form.statusEmoji} />
+                </label>
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Status text</span>
+                  <input className="app-input" onChange={(event) => setForm((current) => ({ ...current, statusText: event.target.value }))} placeholder="What are you focusing on?" type="text" value={form.statusText} />
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              <label className="inline-flex items-center gap-3 text-sm text-slate-700 dark:text-slate-200">
+                <input checked={form.displayLocalTime} onChange={(event) => setForm((current) => ({ ...current, displayLocalTime: event.target.checked }))} type="checkbox" />
+                Display local time
+              </label>
+              <div className="space-y-3">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Social links</span>
+                {form.socialLinks.map((link, index) => (
+                  <input
+                    key={`social-${index}`}
+                    className="app-input"
+                    onChange={(event) =>
+                      setForm((current) => {
+                        const next = [...current.socialLinks];
+                        next[index] = event.target.value;
+                        return { ...current, socialLinks: next };
+                      })
+                    }
+                    placeholder={`https://social-profile-${index + 1}.example`}
+                    type="url"
+                    value={link}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <button className="app-button-primary" disabled={saving} type="submit">
+                {saving ? "Saving..." : "Save profile"}
+              </button>
+            </div>
+          </section>
+        </form>
+
+        <aside className="space-y-6">
+          <section className="app-panel-muted p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <Link2 className="h-5 w-5 text-violet-500 dark:text-violet-300" />
+              <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Linked identities</h2>
+            </div>
+            <div className="space-y-3">
+              {account.account.identities.map((identity) => (
+                <div className="artifact-row" key={`${identity.provider}:${identity.handle}`}>
+                  <span>{identity.provider}</span>
+                  <span>
+                    {identity.handle}
+                    {identity.email ? ` · ${identity.email}` : ""}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="app-panel-muted p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <Activity className="h-5 w-5 text-cyan-500 dark:text-cyan-300" />
+              <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Workspace</h2>
+            </div>
+            <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+              <p>{account.account.stats.ownedAgentCount} owned agents</p>
+              <p>{account.account.topAgent?.title ?? "No top agent yet"}</p>
+              <p>{creatorRank ? `${creatorRank.totalDownloads} downloads across your catalog` : "No creator rank yet"}</p>
+            </div>
+            <div className="mt-4 flex flex-col gap-3">
+              <button className="app-button-secondary" onClick={() => onNavigate("/publish/manual")} type="button">
+                New package
+              </button>
+              <button className="app-button-secondary" onClick={() => onNavigate("/imports/new")} type="button">
+                Import repo
+              </button>
+            </div>
+          </section>
+        </aside>
+      </section>
+
+      <section className="app-panel p-6 sm:p-8">
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-semibold text-slate-950 dark:text-white">Your agents</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Manage lifecycle and review package performance from your workspace.
+            </p>
+          </div>
+          <span className="status-pill">{account.account.ownedAgents.length} items</span>
         </div>
-        <div className="version-list">
+
+        <div className="space-y-4">
           {account.account.ownedAgents.map((agent) => (
-            <div className="version-row stack-sm" key={`${agent.namespace}/${agent.name}`}>
-              <div className="agent-card-head">
-                <span className="agent-slug">
-                  {agent.namespace}/{agent.name}
-                </span>
-                <span className="agent-pill">{agent.lifecycleStatus}</span>
+            <div className="artifact-row flex-col items-stretch" key={`${agent.namespace}/${agent.name}`}>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-600 dark:text-cyan-300">
+                    {agent.namespace}/{agent.name}
+                  </p>
+                  <h3 className="mt-2 text-xl font-semibold text-slate-950 dark:text-white">
+                    {agent.title}
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{agent.description}</p>
+                </div>
+                <span className="status-pill">{agent.lifecycleStatus}</span>
               </div>
-              <div className="stack-xs">
-                <h2>{agent.title}</h2>
-                <p>{agent.description}</p>
-                <p>
-                  {agent.downloadCount} downloads · {agent.starCount} stars · {agent.pinCount} pins
-                </p>
+
+              <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500 dark:text-slate-400">
+                <span>{agent.downloadCount} downloads</span>
+                <span>{agent.starCount} stars</span>
+                <span>{agent.pinCount} pins</span>
               </div>
-              <div className="action-row">
-                <button
-                  className="secondary-action"
-                  onClick={() => onNavigate(buildAgentPath(agent.namespace, agent.name))}
-                  type="button"
-                >
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button className="app-button-secondary" onClick={() => onNavigate(buildAgentPath(agent.namespace, agent.name))} type="button">
                   View
                 </button>
-                <button
-                  className="secondary-action"
-                  onClick={() => void onUpdateLifecycle(agent.namespace, agent.name, "active")}
-                  type="button"
-                >
+                <button className="app-button-secondary" onClick={() => void onUpdateLifecycle(agent.namespace, agent.name, "active")} type="button">
                   Active
                 </button>
-                <button
-                  className="secondary-action"
-                  onClick={() => void onUpdateLifecycle(agent.namespace, agent.name, "deprecated")}
-                  type="button"
-                >
+                <button className="app-button-secondary" onClick={() => void onUpdateLifecycle(agent.namespace, agent.name, "deprecated")} type="button">
                   Deprecated
                 </button>
-                <button
-                  className="secondary-action"
-                  onClick={() =>
-                    void onUpdateLifecycle(agent.namespace, agent.name, "unmaintained")
-                  }
-                  type="button"
-                >
+                <button className="app-button-secondary" onClick={() => void onUpdateLifecycle(agent.namespace, agent.name, "unmaintained")} type="button">
                   Unmaintained
                 </button>
               </div>

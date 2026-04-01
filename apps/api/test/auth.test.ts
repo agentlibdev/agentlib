@@ -100,6 +100,64 @@ test("auth gateway completes a GitHub callback and redirects with a session cook
   assert.match(response.headers.get("set-cookie") ?? "", /agentlib_session=/);
 });
 
+test("auth gateway uses the browser-facing host for proxied local OAuth redirects", async () => {
+  const gateway = createAuthGateway(env);
+
+  const response = await gateway.startAuthorization(
+    "google",
+    new Request("http://127.0.0.1:8787/api/v1/auth/google/start?redirectTo=%2Fagents%2Facme%2Fsupport-triager", {
+      headers: {
+        host: "127.0.0.1:4173"
+      }
+    })
+  );
+
+  assert.equal(response.status, 302);
+  const location = response.headers.get("location");
+  assert.ok(location);
+  assert.match(
+    location,
+    /redirect_uri=http%3A%2F%2F127\.0\.0\.1%3A4173%2Fapi%2Fv1%2Fauth%2Fgoogle%2Fcallback/
+  );
+});
+
+test("auth gateway omits Secure on local http callback cookies", async () => {
+  const gateway = createAuthGateway(env);
+  const startResponse = await gateway.startAuthorization(
+    "github",
+    new Request("http://127.0.0.1:8787/api/v1/auth/github/start?redirectTo=%2Faccount", {
+      headers: {
+        host: "127.0.0.1:4173"
+      }
+    })
+  );
+  const state = new URL(startResponse.headers.get("location") ?? "").searchParams.get("state");
+
+  const response = await gateway.finishAuthorization(
+    "github",
+    new Request(
+      `http://127.0.0.1:8787/api/v1/auth/github/callback?code=test-code&state=${encodeURIComponent(state ?? "")}`,
+      {
+        headers: {
+          host: "127.0.0.1:4173"
+        }
+      }
+    ),
+    {
+      exchangeGithubCode: async () => ({
+        provider: "github",
+        subject: "123456",
+        handle: "raul",
+        displayName: "Raul"
+      })
+    }
+  );
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get("location"), "/account");
+  assert.doesNotMatch(response.headers.get("set-cookie") ?? "", /Secure/);
+});
+
 test("auth gateway surfaces a readable error when GitHub profile exchange fails", async () => {
   const gateway = createAuthGateway(env, (async (input, init) => {
     const url = String(input);

@@ -84,24 +84,59 @@ function parseCookie(header: string | null, name: string): string | null {
   return null;
 }
 
-function buildCookie(name: string, value: string, maxAgeSeconds: number): string {
-  return [
+function isLocalHttpRequest(request: Request): boolean {
+  const url = new URL(request.url);
+  const host = request.headers.get("host") ?? url.host;
+  return url.protocol === "http:" && /^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host);
+}
+
+function buildCookie(
+  name: string,
+  value: string,
+  maxAgeSeconds: number,
+  request: Request
+): string {
+  const parts = [
     `${name}=${value}`,
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",
-    "Secure",
     `Max-Age=${maxAgeSeconds}`
-  ].join("; ");
+  ];
+
+  if (!isLocalHttpRequest(request)) {
+    parts.splice(4, 0, "Secure");
+  }
+
+  return parts.join("; ");
 }
 
-function buildClearedCookie(name: string): string {
-  return `${name}=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0`;
+function buildClearedCookie(name: string, request: Request): string {
+  const parts = [`${name}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"];
+
+  if (!isLocalHttpRequest(request)) {
+    parts.splice(4, 0, "Secure");
+  }
+
+  return parts.join("; ");
+}
+
+function requestOrigin(request: Request): string {
+  const url = new URL(request.url);
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  if (!host) {
+    return url.origin;
+  }
+
+  const protocol =
+    request.headers.get("x-forwarded-proto") ??
+    (url.protocol === "http:" ? "http" : "https");
+
+  return `${protocol}://${host}`;
 }
 
 function providerRedirectUri(provider: OAuthProvider, request: Request): string {
-  const url = new URL(request.url);
-  return `${url.origin}/api/v1/auth/${provider}/callback`;
+  return `${requestOrigin(request)}/api/v1/auth/${provider}/callback`;
 }
 
 async function createState(secret: string, state: OAuthState): Promise<string> {
@@ -122,9 +157,13 @@ async function verifyState(secret: string, signedState: string): Promise<OAuthSt
   return parsed;
 }
 
-async function createSessionCookie(secret: string, user: AuthenticatedUser): Promise<string> {
+async function createSessionCookie(
+  secret: string,
+  user: AuthenticatedUser,
+  request: Request
+): Promise<string> {
   const signed = await signValue(secret, JSON.stringify(user));
-  return buildCookie(SESSION_COOKIE_NAME, signed, SESSION_MAX_AGE_SECONDS);
+  return buildCookie(SESSION_COOKIE_NAME, signed, SESSION_MAX_AGE_SECONDS, request);
 }
 
 async function readCookieSession(
@@ -384,7 +423,7 @@ export function createAuthGateway(
           status: 302,
           headers: {
             location: verifiedState.redirectTo,
-            "set-cookie": await createSessionCookie(env.AUTH_COOKIE_SECRET, actor)
+            "set-cookie": await createSessionCookie(env.AUTH_COOKIE_SECRET, actor, request)
           }
         });
       } catch (error) {
@@ -400,12 +439,12 @@ export function createAuthGateway(
       }
     },
 
-    async logout() {
+    async logout(request) {
       return new Response(null, {
         status: 302,
         headers: {
           location: "/",
-          "set-cookie": buildClearedCookie(SESSION_COOKIE_NAME)
+          "set-cookie": buildClearedCookie(SESSION_COOKIE_NAME, request)
         }
       });
     }

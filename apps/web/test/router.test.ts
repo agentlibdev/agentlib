@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildAccountPath,
+  buildArtifactPath,
   buildCreatorPath,
   buildImportDetailPath,
   buildImportNewPath,
@@ -31,6 +32,19 @@ test("matchRoute resolves an agent version page", () => {
     nameParam: "code-reviewer",
     version: "0.4.0"
   });
+});
+
+test("matchRoute resolves an artifact viewer page", () => {
+  assert.deepEqual(
+    matchRoute("/agents/raul/code-reviewer/versions/0.4.0/artifacts/README.md/view"),
+    {
+      name: "artifact",
+      namespace: "raul",
+      nameParam: "code-reviewer",
+      version: "0.4.0",
+      artifactPath: "README.md"
+    }
+  );
 });
 
 test("matchRoute resolves the import creation page", () => {
@@ -83,6 +97,13 @@ test("buildAccountPath builds the account path", () => {
 
 test("buildCreatorPath builds the creator path", () => {
   assert.equal(buildCreatorPath("raul"), "/creators/raul");
+});
+
+test("buildArtifactPath builds the artifact viewer path", () => {
+  assert.equal(
+    buildArtifactPath("raul", "code-reviewer", "0.4.0", "README.md"),
+    "/agents/raul/code-reviewer/versions/0.4.0/artifacts/README.md/view"
+  );
 });
 
 test("matchRoute returns not-found for unknown paths", () => {

@@ -7,6 +7,7 @@ export type RouteMatch =
   | { name: "import-detail"; importId: string }
   | { name: "agent"; namespace: string; nameParam: string }
   | { name: "version"; namespace: string; nameParam: string; version: string }
+  | { name: "artifact"; namespace: string; nameParam: string; version: string; artifactPath: string }
   | { name: "not-found" };
 
 export function matchRoute(pathname: string): RouteMatch {
@@ -46,6 +47,20 @@ export function matchRoute(pathname: string): RouteMatch {
     return { name: "version", namespace, nameParam, version };
   }
 
+  const artifactMatch = pathname.match(
+    /^\/agents\/([^/]+)\/([^/]+)\/versions\/([^/]+)\/artifacts\/(.+)\/view$/
+  );
+  if (artifactMatch) {
+    const [, namespace, nameParam, version, artifactPath] = artifactMatch;
+    return {
+      name: "artifact",
+      namespace,
+      nameParam,
+      version,
+      artifactPath: decodeURIComponent(artifactPath)
+    };
+  }
+
   const agentMatch = pathname.match(/^\/agents\/([^/]+)\/([^/]+)$/);
   if (agentMatch) {
     const [, namespace, nameParam] = agentMatch;
@@ -65,6 +80,17 @@ export function buildVersionPath(
   version: string
 ): string {
   return `${buildAgentPath(namespace, name)}/versions/${encodeURIComponent(version)}`;
+}
+
+export function buildArtifactPath(
+  namespace: string,
+  name: string,
+  version: string,
+  artifactPath: string
+): string {
+  return `${buildVersionPath(namespace, name, version)}/artifacts/${encodeURIComponent(
+    artifactPath
+  )}/view`;
 }
 
 export function buildImportNewPath(): string {

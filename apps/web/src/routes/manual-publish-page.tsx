@@ -1,5 +1,6 @@
 import { startTransition, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
+import { FileUp, PackagePlus, PencilRuler } from "lucide-react";
 
 import { buildManualPublishRequest } from "../lib/manual-publish.js";
 import type { PublishRequest, SessionResponse } from "../lib/types.js";
@@ -64,158 +65,114 @@ export function ManualPublishPage({ onNavigate, onPublish, session }: ManualPubl
   }
 
   return (
-    <section className="manual-shell stack-lg">
-      <div className="manual-hero panel stack-sm">
-        <p className="eyebrow">Manual Registry</p>
-        <h1>Create a registry entry by hand.</h1>
-        <p className="lede">
-          Fill the manifest fields, paste the README, and upload the package files you want
-          published as artifacts.
-        </p>
-        {session ? (
-          <p className="toolbar-meta">Publishing as {session.handle}</p>
-        ) : (
-          <p className="toolbar-meta">Sign in first to publish and claim ownership.</p>
-        )}
-      </div>
+    <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <form className="space-y-6" id="manual-publish-form" onSubmit={(event) => void handleSubmit(event)}>
+        <section className="app-panel p-6 sm:p-8">
+          <div className="page-stack">
+            <div className="space-y-3">
+              <p className="eyebrow">Manual Registry</p>
+              <h1 className="text-4xl font-semibold tracking-tight text-slate-950 dark:text-white">
+                Create a registry entry by hand.
+              </h1>
+              <p className="lede">
+                Fill the manifest fields, paste the README, and upload the package files you want
+                published as artifacts.
+              </p>
+            </div>
 
-      <form className="manual-layout" onSubmit={(event) => void handleSubmit(event)}>
-        <section className="panel stack-lg">
-          <div className="section-head">
-            <h2>Package metadata</h2>
-            <span>Schema-backed</span>
-          </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Namespace</span>
+                <input className="app-input" onChange={(event) => updateField("namespace", event.target.value)} required value={form.namespace} />
+              </label>
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Name</span>
+                <input className="app-input" onChange={(event) => updateField("name", event.target.value)} required value={form.name} />
+              </label>
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Version</span>
+                <input className="app-input" onChange={(event) => updateField("version", event.target.value)} placeholder="0.1.0" required value={form.version} />
+              </label>
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">License</span>
+                <input className="app-input" onChange={(event) => updateField("license", event.target.value)} value={form.license} />
+              </label>
+            </div>
 
-          <div className="manual-grid">
-            <label className="search-field">
-              <span>Namespace</span>
-              <input
-                name="namespace"
-                onChange={(event) => updateField("namespace", event.target.value)}
-                required
-                value={form.namespace}
-              />
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Title</span>
+              <input className="app-input" onChange={(event) => updateField("title", event.target.value)} required value={form.title} />
             </label>
-            <label className="search-field">
-              <span>Name</span>
-              <input
-                name="name"
-                onChange={(event) => updateField("name", event.target.value)}
-                required
-                value={form.name}
-              />
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Description</span>
+              <textarea className="app-textarea" onChange={(event) => updateField("description", event.target.value)} required rows={3} value={form.description} />
             </label>
-            <label className="search-field">
-              <span>Version</span>
-              <input
-                name="version"
-                onChange={(event) => updateField("version", event.target.value)}
-                placeholder="0.1.0"
-                required
-                value={form.version}
-              />
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Summary</span>
+              <textarea className="app-textarea" onChange={(event) => updateField("summary", event.target.value)} required rows={4} value={form.summary} />
             </label>
-            <label className="search-field">
-              <span>License</span>
-              <input
-                name="license"
-                onChange={(event) => updateField("license", event.target.value)}
-                value={form.license}
-              />
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">README</span>
+              <textarea className="app-textarea min-h-[320px]" onChange={(event) => updateField("readme", event.target.value)} required rows={14} value={form.readme} />
             </label>
           </div>
+        </section>
+      </form>
 
-          <label className="search-field search-field-wide">
-            <span>Title</span>
-            <input
-              name="title"
-              onChange={(event) => updateField("title", event.target.value)}
-              required
-              value={form.title}
-            />
+      <aside className="space-y-6">
+        <section className="app-panel-muted p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <FileUp className="h-5 w-5 text-cyan-500 dark:text-cyan-300" />
+            <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Artifacts</h2>
+          </div>
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Upload files</span>
+            <input className="app-input file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-500/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-cyan-700 dark:file:text-cyan-200" multiple onChange={handleFilesChange} type="file" />
           </label>
-
-          <label className="search-field search-field-wide">
-            <span>Description</span>
-            <textarea
-              name="description"
-              onChange={(event) => updateField("description", event.target.value)}
-              required
-              rows={3}
-              value={form.description}
-            />
-          </label>
-
-          <label className="search-field search-field-wide">
-            <span>Summary</span>
-            <textarea
-              name="summary"
-              onChange={(event) => updateField("summary", event.target.value)}
-              required
-              rows={4}
-              value={form.summary}
-            />
-          </label>
-
-          <label className="search-field search-field-wide">
-            <span>README</span>
-            <textarea
-              className="manual-readme"
-              name="readme"
-              onChange={(event) => updateField("readme", event.target.value)}
-              required
-              rows={12}
-              value={form.readme}
-            />
-          </label>
+          <div className="mt-4 space-y-3">
+            {files.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300/80 px-4 py-8 text-center text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
+                Add `agent.yaml`, `README.md`, and any extra package files.
+              </div>
+            ) : (
+              files.map((file) => (
+                <div className="artifact-row" key={`${file.name}:${file.size}`}>
+                  <span>{file.name}</span>
+                  <span>
+                    {file.type || "application/octet-stream"} · {file.size} bytes
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
         </section>
 
-        <aside className="stack-lg">
-          <section className="panel stack-sm">
-            <div className="section-head">
-              <h2>Artifacts</h2>
-              <span>{files.length} files</span>
+        <section className="app-panel-muted p-5">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <PackagePlus className="h-5 w-5 text-violet-500 dark:text-violet-300" />
+              <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Publish</h2>
             </div>
-            <label className="search-field search-field-wide">
-              <span>Upload files</span>
-              <input multiple onChange={handleFilesChange} type="file" />
-            </label>
-            <div className="artifact-list">
-              {files.length === 0 ? (
-                <div className="inset-empty stack-sm manual-file-empty">
-                  <p className="eyebrow">Missing</p>
-                  <p>Add `agent.yaml`, `README.md`, and any extra package files.</p>
-                </div>
-              ) : (
-                files.map((file) => (
-                  <div className="artifact-row" key={`${file.name}:${file.size}`}>
-                    <span>{file.name}</span>
-                    <span>
-                      {file.type || "application/octet-stream"} · {file.size} bytes
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-
-          <section className="panel stack-sm">
-            <p className="eyebrow">Publish</p>
-            <h2>Push this package to the registry.</h2>
-            <p>
-              This first slice publishes immediately. Ownership, edit history, and lifecycle
-              controls land in the next backend phase.
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              {session
+                ? `Publishing as ${session.handle}.`
+                : "Sign in first to publish and claim ownership."}
             </p>
-            <div className="action-row">
+            <div className="flex flex-col gap-3">
               <button
-                className="primary-action"
+                className="app-button-primary"
                 disabled={status === "submitting" || !session}
+                form="manual-publish-form"
                 type="submit"
               >
+                <PencilRuler className="h-4 w-4" />
                 {status === "submitting" ? "Publishing..." : "Publish package"}
               </button>
               <button
-                className="secondary-action"
+                className="app-button-secondary"
                 onClick={() =>
                   startTransition(() => {
                     onNavigate("/");
@@ -226,16 +183,10 @@ export function ManualPublishPage({ onNavigate, onPublish, session }: ManualPubl
                 Back to registry
               </button>
             </div>
-
-            {status === "error" ? (
-              <div className="inline-error">
-                <strong>Publish failed.</strong>
-                <span>{errorMessage}</span>
-              </div>
-            ) : null}
-          </section>
-        </aside>
-      </form>
+            {status === "error" ? <div className="inline-error">{errorMessage}</div> : null}
+          </div>
+        </section>
+      </aside>
     </section>
   );
 }

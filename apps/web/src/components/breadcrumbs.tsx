@@ -1,3 +1,5 @@
+import { ChevronRight } from "lucide-react";
+
 import type { Breadcrumb } from "../lib/view-models.js";
 
 type BreadcrumbsProps = {
@@ -7,11 +9,18 @@ type BreadcrumbsProps = {
 
 export function Breadcrumbs({ items, onNavigate }: BreadcrumbsProps) {
   return (
-    <nav className="breadcrumbs" aria-label="Breadcrumb">
+    <nav
+      aria-label="Breadcrumb"
+      className="flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-gray-400"
+    >
       {items.map((item, index) => (
-        <span className="breadcrumb-item" key={item.path}>
-          {index > 0 ? <span className="breadcrumb-separator">/</span> : null}
-          <button onClick={() => onNavigate(item.path)} type="button">
+        <span className="inline-flex items-center gap-2" key={item.path}>
+          {index > 0 ? <ChevronRight className="h-4 w-4 text-slate-300 dark:text-gray-700" /> : null}
+          <button
+            className="transition hover:text-cyan-600 dark:hover:text-cyan-400"
+            onClick={() => onNavigate(item.path)}
+            type="button"
+          >
             {item.label}
           </button>
         </span>

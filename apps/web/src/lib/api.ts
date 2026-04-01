@@ -4,6 +4,7 @@ import type {
   AgentVersionDetailResponse,
   ApiErrorResponse,
   ArtifactListResponse,
+  ArtifactPreviewResponse,
   GithubImportCreateResponse,
   GithubImportRequest,
   ImportDraftResponse,
@@ -83,6 +84,40 @@ export function buildArtifactDownloadUrl(
   return `${buildArtifactsUrl(namespace, name, version)}/${encodeURIComponent(path)}`;
 }
 
+export function buildTrackedArtifactDownloadUrl(
+  namespace: string,
+  name: string,
+  version: string,
+  path: string
+): string {
+  return `${buildArtifactDownloadUrl(namespace, name, version, path)}?tracked=1`;
+}
+
+export function buildArtifactPreviewUrl(
+  namespace: string,
+  name: string,
+  version: string,
+  path: string
+): string {
+  return `${buildArtifactDownloadUrl(namespace, name, version, path)}/content`;
+}
+
+export function buildVersionBundleDownloadUrl(
+  namespace: string,
+  name: string,
+  version: string
+): string {
+  return `${buildAgentVersionUrl(namespace, name, version)}/download.zip`;
+}
+
+export function buildTrackedVersionBundleDownloadUrl(
+  namespace: string,
+  name: string,
+  version: string
+): string {
+  return `${buildVersionBundleDownloadUrl(namespace, name, version)}?tracked=1`;
+}
+
 export function buildAgentLifecycleUrl(namespace: string, name: string): string {
   return buildAgentDetailUrl(namespace, name);
 }
@@ -146,6 +181,15 @@ export function fetchArtifacts(
   version: string
 ): Promise<ArtifactListResponse> {
   return fetchJson<ArtifactListResponse>(buildArtifactsUrl(namespace, name, version));
+}
+
+export function fetchArtifactPreview(
+  namespace: string,
+  name: string,
+  version: string,
+  path: string
+): Promise<ArtifactPreviewResponse> {
+  return fetchJson<ArtifactPreviewResponse>(buildArtifactPreviewUrl(namespace, name, version, path));
 }
 
 export async function createGithubImport(

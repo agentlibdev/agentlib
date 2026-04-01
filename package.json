@@ -8,6 +8,10 @@
     "apps/*",
     "packages/*"
   ],
+  "overrides": {
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
   "scripts": {
     "build:test": "tsc -p tsconfig.test.json && node scripts/post-compile-aliases.mjs",
     "test": "npm run build:test && node --test .test-dist/apps/*/test/*.test.js",
@@ -25,6 +29,7 @@
     "dev:api": "wrangler dev",
     "dev:api:local": "wrangler dev --local --persist-to .wrangler/state --port 8787 --ip 127.0.0.1 --show-interactive-dev-session=false --log-level warn",
     "publish:sample:local": "node scripts/publish-sample-local.mjs",
+    "publish:example:local": "tsx scripts/publish-example-local.ts",
     "populate:demo:local": "node scripts/populate-demo-local.mjs",
     "import:github:local": "node scripts/import-github-local.mjs",
     "list:artifacts:local": "node scripts/list-artifacts-local.mjs",
@@ -37,8 +42,15 @@
     "@types/node": "^22.15.30",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19",
     "tsx": "^4.21.0",
     "typescript": "^5.9.2",
     "wrangler": "^4.38.0"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2",
+    "react-markdown": "^10.1.0"
   }
 }

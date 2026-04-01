@@ -139,11 +139,14 @@ To exercise the HTTP publish path against local D1:
 ```bash
 npm run dev:api:local
 npm run publish:sample:local
+npm run publish:example:local -- ../agent-examples
 npm run list:artifacts:local -- raul code-reviewer 0.3.0
 npm run download:artifact:local -- raul code-reviewer 0.3.0 README.md
 npm run d1:list:local
 npm run d1:list:artifacts:local
 ```
+
+`publish:sample:local` posts the fixed smoke fixture. `publish:example:local` publishes a real example package directory that already contains `agent.yaml` and `README.md`, with optional `agent.md` and `LICENSE` included when present.
 
 To load a richer visual demo with multiple users, agents, artifacts, downloads, pins, and stars:
 

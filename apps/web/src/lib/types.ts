@@ -159,6 +159,18 @@ export type ArtifactListResponse = {
   items: ArtifactItem[];
 };
 
+export type ArtifactPreviewResponse = {
+  artifact: {
+    path: string;
+    mediaType: string;
+    sizeBytes: number;
+  };
+  preview: {
+    kind: "markdown" | "json" | "text";
+    text: string;
+  };
+};
+
 export type PublishArtifactInput = {
   path: string;
   mediaType: string;
