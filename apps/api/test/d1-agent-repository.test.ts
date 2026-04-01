@@ -27,6 +27,10 @@ type StatementResult<Row> = {
 function normalizeLegacySql(sql: string): string {
   return sql
     .replace(
+      ", a.namespace_type AS namespaceType, a.verification_status AS verificationStatus, a.canonical_namespace AS canonicalNamespace, a.canonical_name AS canonicalName, a.claimed_by_namespace AS claimedByNamespace, a.source_type AS sourceType, a.source_url AS sourceUrl, a.source_repository_url AS sourceRepositoryUrl, a.original_author_handle AS originalAuthorHandle, a.original_author_name AS originalAuthorName, a.original_author_url AS originalAuthorUrl, a.submitted_by_handle AS submittedByHandle, a.submitted_by_name AS submittedByName",
+      ""
+    )
+    .replace(
       ", lifecycle_status AS lifecycleStatus, owner_handle AS ownerHandle",
       ""
     )
@@ -39,6 +43,7 @@ function normalizeLegacySql(sql: string): string {
       ""
     )
     .replace(" JOIN users u ON u.id = a.owner_user_id", "")
+    .replace(", u.display_name AS ownerDisplayName", "")
     .replace(", owner_user_id AS ownerUserId", "");
 }
 
@@ -71,6 +76,23 @@ class FakePreparedStatement<Row> {
         ) {
           maybeRow.lifecycleStatus ??= "active";
           maybeRow.ownerHandle ??= "raul";
+        }
+
+        if (this.sql.includes("JOIN users u ON u.id = a.owner_user_id")) {
+          maybeRow.ownerDisplayName ??= "Raul";
+          maybeRow.namespaceType ??= "official";
+          maybeRow.verificationStatus ??= "official";
+          maybeRow.canonicalNamespace ??= maybeRow.namespace;
+          maybeRow.canonicalName ??= maybeRow.name;
+          maybeRow.claimedByNamespace ??= null;
+          maybeRow.sourceType ??= "manual";
+          maybeRow.sourceUrl ??= null;
+          maybeRow.sourceRepositoryUrl ??= null;
+          maybeRow.originalAuthorHandle ??= maybeRow.ownerHandle;
+          maybeRow.originalAuthorName ??= maybeRow.ownerDisplayName;
+          maybeRow.originalAuthorUrl ??= null;
+          maybeRow.submittedByHandle ??= maybeRow.ownerHandle;
+          maybeRow.submittedByName ??= maybeRow.ownerDisplayName;
         }
 
         if (this.sql.includes("FROM agents WHERE namespace = ?1 AND name = ?2 LIMIT 1")) {
@@ -114,7 +136,7 @@ class FakeDatabase {
         sql ===
           "SELECT download_count AS downloadCount, pin_count AS pinCount, star_count AS starCount FROM agent_metrics WHERE agent_id = ?1 LIMIT 1" ||
         sql ===
-          "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)" ||
+          "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, namespace_type, verification_status, canonical_namespace, canonical_name, claimed_by_namespace, source_type, source_url, source_repository_url, original_author_handle, original_author_name, original_author_url, submitted_by_handle, submitted_by_name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)" ||
         sql ===
           "INSERT INTO agent_metrics (agent_id, download_count, pin_count, star_count, updated_at) VALUES (?1, 0, 0, 0, ?2)" ||
         sql ===
@@ -294,6 +316,23 @@ test("D1AgentRepository groups detail rows into one agent detail response", asyn
     latestVersion: "0.2.0",
     lifecycleStatus: "active",
     ownerHandle: "raul",
+    authority: {
+      namespaceType: "official",
+      verificationStatus: "official",
+      canonicalNamespace: "raul",
+      canonicalName: "code-reviewer",
+      claimedByNamespace: null
+    },
+    provenance: {
+      sourceType: "manual",
+      sourceUrl: null,
+      sourceRepositoryUrl: null,
+      originalAuthorHandle: "raul",
+      originalAuthorName: "Raul",
+      originalAuthorUrl: null,
+      submittedByHandle: "raul",
+      submittedByName: "Raul"
+    },
     downloadCount: 0,
     pinCount: 0,
     starCount: 0,
@@ -377,7 +416,24 @@ test("D1AgentRepository returns one version detail row", async () => {
     manifestJson: "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.2.0\"}}",
     publishedAt: "2026-03-11T10:00:00.000Z",
     lifecycleStatus: "active",
-    ownerHandle: "raul"
+    ownerHandle: "raul",
+    authority: {
+      namespaceType: "official",
+      verificationStatus: "official",
+      canonicalNamespace: "raul",
+      canonicalName: "code-reviewer",
+      claimedByNamespace: null
+    },
+    provenance: {
+      sourceType: "manual",
+      sourceUrl: null,
+      sourceRepositoryUrl: null,
+      originalAuthorHandle: "raul",
+      originalAuthorName: "Raul",
+      originalAuthorUrl: null,
+      submittedByHandle: "raul",
+      submittedByName: "Raul"
+    }
   });
 });
 
@@ -413,7 +469,7 @@ test("D1AgentRepository publishes a new version for a new agent", async () => {
       "UPDATE users SET handle = ?1, display_name = ?2, email = ?3, avatar_url = ?4, updated_at = ?5 WHERE id = ?6": {
         results: []
       },
-      "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)": {
+      "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, namespace_type, verification_status, canonical_namespace, canonical_name, claimed_by_namespace, source_type, source_url, source_repository_url, original_author_handle, original_author_name, original_author_url, submitted_by_handle, submitted_by_name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)": {
         results: []
       },
       "UPDATE agents SET latest_version = ?1, updated_at = ?2 WHERE id = ?3": {
@@ -477,9 +533,11 @@ test("D1AgentRepository publishes a new version for a new agent", async () => {
     database.runs.some(
       (entry) =>
         entry.sql ===
-          "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)" &&
+          "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, namespace_type, verification_status, canonical_namespace, canonical_name, claimed_by_namespace, source_type, source_url, source_repository_url, original_author_handle, original_author_name, original_author_url, submitted_by_handle, submitted_by_name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)" &&
         entry.args[3] === "user_github_123456" &&
-        entry.args[4] === "active"
+        entry.args[4] === "active" &&
+        entry.args[6] === "official" &&
+        entry.args[7] === "official"
     )
   );
 });
@@ -504,7 +562,7 @@ test("D1AgentRepository links a second OAuth identity to the same user by email"
     "UPDATE users SET handle = ?1, display_name = ?2, email = ?3, avatar_url = ?4, updated_at = ?5 WHERE id = ?6": {
       results: []
     },
-    "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)": {
+    "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, namespace_type, verification_status, canonical_namespace, canonical_name, claimed_by_namespace, source_type, source_url, source_repository_url, original_author_handle, original_author_name, original_author_url, submitted_by_handle, submitted_by_name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)": {
       results: []
     },
     "INSERT INTO agent_versions (id, agent_id, version, title, description, license, manifest_json, readme_path, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)": {

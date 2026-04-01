@@ -85,7 +85,7 @@ let devServer = null;
 const devLogs = [];
 
 try {
-  await runCommand("npm", ["run", "d1:reset:local"], { cwd: process.cwd() });
+  await runCommand("npm", ["run", "db:reset:local"], { cwd: process.cwd() });
 
   devServer = spawn("npm", ["run", "dev:api:local"], {
     cwd: process.cwd(),

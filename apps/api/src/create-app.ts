@@ -335,6 +335,8 @@ export function createApp(
             latestVersion: detail.latestVersion,
             lifecycleStatus: detail.lifecycleStatus,
             ownerHandle: detail.ownerHandle,
+            authority: detail.authority,
+            provenance: detail.provenance,
             downloadCount: detail.downloadCount,
             pinCount: detail.pinCount,
             starCount: detail.starCount,

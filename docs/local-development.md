@@ -24,14 +24,14 @@ npm install
 For a first local run:
 
 ```bash
-npm run d1:reset:local
+npm run db:reset:local
 npm run dev:api:local
 ```
 
 This does the following:
 
 - creates local D1 state under `.wrangler/state`
-- applies the initial migration
+- applies all local SQL migrations in order
 - seeds provider data
 - inserts sample agent/version records for local development
 - starts the Worker locally on `127.0.0.1:8787`
@@ -47,7 +47,7 @@ curl -s http://127.0.0.1:8787/health
 ### Reset local data
 
 ```bash
-npm run d1:reset:local
+npm run db:reset:local
 ```
 
 ### Inspect local D1 contents
@@ -112,16 +112,16 @@ npm run dev:api:local
 In a second terminal:
 
 ```bash
-npm run publish:sample:local
-npm run publish:example:local -- ../agent-examples
+npm run publish:fixture:local
+npm run publish:dir:local -- ../agent-examples
 npm run list:artifacts:local -- raul code-reviewer 0.3.0
 npm run download:artifact:local -- raul code-reviewer 0.3.0 README.md
 ```
 
 Use the helpers like this:
 
-- `publish:sample:local` publishes the fixed smoke fixture used by the repo.
-- `publish:example:local` publishes a real example package directory, such as the root fixture in `../agent-examples`.
+- `publish:fixture:local` publishes the fixed smoke fixture used by the repo.
+- `publish:dir:local` publishes a real example package directory, such as the root fixture in `../agent-examples`.
 
 Useful read endpoints after publish:
 
@@ -183,7 +183,7 @@ Current limitation:
 ## Troubleshooting
 
 - If local Wrangler commands fail, confirm Node.js `>=20`.
-- If `smoke:local` fails after an interrupted run, reset local state with `npm run d1:reset:local`.
+- If `smoke:local` fails after an interrupted run, reset local state with `npm run db:reset:local`.
 - If port `8787` is already in use, stop the previous local Worker before starting a new one.
 
 ## Cloudflare deploy flow

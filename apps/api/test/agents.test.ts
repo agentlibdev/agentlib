@@ -122,6 +122,23 @@ test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
       latestVersion: "0.1.0",
       lifecycleStatus: "active",
       ownerHandle: "raul",
+      authority: {
+        namespaceType: "official",
+        verificationStatus: "official",
+        canonicalNamespace: "raul",
+        canonicalName: "code-reviewer",
+        claimedByNamespace: null
+      },
+      provenance: {
+        sourceType: "manual",
+        sourceUrl: null,
+        sourceRepositoryUrl: null,
+        originalAuthorHandle: "raul",
+        originalAuthorName: "Raul",
+        originalAuthorUrl: "https://agentlib.dev/raul",
+        submittedByHandle: "raul",
+        submittedByName: "Raul"
+      },
       downloadCount: 42,
       pinCount: 7,
       starCount: 15,
@@ -152,6 +169,23 @@ test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
       latestVersion: "0.1.0",
       lifecycleStatus: "active",
       ownerHandle: "raul",
+      authority: {
+        namespaceType: "official",
+        verificationStatus: "official",
+        canonicalNamespace: "raul",
+        canonicalName: "code-reviewer",
+        claimedByNamespace: null
+      },
+      provenance: {
+        sourceType: "manual",
+        sourceUrl: null,
+        sourceRepositoryUrl: null,
+        originalAuthorHandle: "raul",
+        originalAuthorName: "Raul",
+        originalAuthorUrl: "https://agentlib.dev/raul",
+        submittedByHandle: "raul",
+        submittedByName: "Raul"
+      },
       downloadCount: 42,
       pinCount: 7,
       starCount: 15,
@@ -190,6 +224,23 @@ test("GET /api/v1/agents/:namespace/:name includes viewer social state for the a
       latestVersion: "0.1.0",
       lifecycleStatus: "active",
       ownerHandle: "raul",
+      authority: {
+        namespaceType: "official",
+        verificationStatus: "official",
+        canonicalNamespace: "raul",
+        canonicalName: "code-reviewer",
+        claimedByNamespace: null
+      },
+      provenance: {
+        sourceType: "manual",
+        sourceUrl: null,
+        sourceRepositoryUrl: null,
+        originalAuthorHandle: "raul",
+        originalAuthorName: "Raul",
+        originalAuthorUrl: "https://agentlib.dev/raul",
+        submittedByHandle: "raul",
+        submittedByName: "Raul"
+      },
       downloadCount: 42,
       pinCount: 7,
       starCount: 15,
@@ -215,6 +266,23 @@ test("GET /api/v1/agents/:namespace/:name includes viewer social state for the a
       latestVersion: "0.1.0",
       lifecycleStatus: "active",
       ownerHandle: "raul",
+      authority: {
+        namespaceType: "official",
+        verificationStatus: "official",
+        canonicalNamespace: "raul",
+        canonicalName: "code-reviewer",
+        claimedByNamespace: null
+      },
+      provenance: {
+        sourceType: "manual",
+        sourceUrl: null,
+        sourceRepositoryUrl: null,
+        originalAuthorHandle: "raul",
+        originalAuthorName: "Raul",
+        originalAuthorUrl: "https://agentlib.dev/raul",
+        submittedByHandle: "raul",
+        submittedByName: "Raul"
+      },
       downloadCount: 42,
       pinCount: 7,
       starCount: 15,
@@ -331,7 +399,24 @@ test("GET /api/v1/agents/:namespace/:name/versions/:version returns one version 
       manifestJson: "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.2.0\"}}",
       publishedAt: "2026-03-11T10:00:00.000Z",
       lifecycleStatus: "active",
-      ownerHandle: "raul"
+      ownerHandle: "raul",
+      authority: {
+        namespaceType: "official",
+        verificationStatus: "official",
+        canonicalNamespace: "raul",
+        canonicalName: "code-reviewer",
+        claimedByNamespace: null
+      },
+      provenance: {
+        sourceType: "manual",
+        sourceUrl: null,
+        sourceRepositoryUrl: null,
+        originalAuthorHandle: "raul",
+        originalAuthorName: "Raul",
+        originalAuthorUrl: "https://agentlib.dev/raul",
+        submittedByHandle: "raul",
+        submittedByName: "Raul"
+      }
     })
   });
 
@@ -351,7 +436,24 @@ test("GET /api/v1/agents/:namespace/:name/versions/:version returns one version 
       manifestJson: "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.2.0\"}}",
       publishedAt: "2026-03-11T10:00:00.000Z",
       lifecycleStatus: "active",
-      ownerHandle: "raul"
+      ownerHandle: "raul",
+      authority: {
+        namespaceType: "official",
+        verificationStatus: "official",
+        canonicalNamespace: "raul",
+        canonicalName: "code-reviewer",
+        claimedByNamespace: null
+      },
+      provenance: {
+        sourceType: "manual",
+        sourceUrl: null,
+        sourceRepositoryUrl: null,
+        originalAuthorHandle: "raul",
+        originalAuthorName: "Raul",
+        originalAuthorUrl: "https://agentlib.dev/raul",
+        submittedByHandle: "raul",
+        submittedByName: "Raul"
+      }
     }
   });
 });

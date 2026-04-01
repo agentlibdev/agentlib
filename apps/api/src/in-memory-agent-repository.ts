@@ -17,6 +17,10 @@ import type {
   PublishRequest,
   PublishResult
 } from "@core/agent-record.js";
+import {
+  createDefaultAuthority,
+  createDefaultProvenance
+} from "@core/agent-provenance.js";
 import type { AgentRepository } from "@core/agent-repository.js";
 import { validateManifest } from "@validation/validate-manifest.js";
 import { parseGithubRepositoryUrl } from "@providers/github-import.js";
@@ -27,6 +31,15 @@ const seedAgent: AgentDetail = {
   latestVersion: "0.1.0",
   lifecycleStatus: "active",
   ownerHandle: "raul",
+  authority: createDefaultAuthority({
+    namespace: "raul",
+    name: "code-reviewer"
+  }),
+  provenance: createDefaultProvenance({
+    ownerHandle: "raul",
+    ownerDisplayName: "Raul",
+    originalAuthorUrl: "https://agentlib.dev/raul"
+  }),
   downloadCount: 0,
   pinCount: 0,
   starCount: 0,
@@ -217,7 +230,9 @@ export class InMemoryAgentRepository implements AgentRepository {
       }),
       publishedAt: versionRecord.publishedAt,
       lifecycleStatus: detail.lifecycleStatus,
-      ownerHandle: detail.ownerHandle
+      ownerHandle: detail.ownerHandle,
+      authority: detail.authority,
+      provenance: detail.provenance
     };
   }
 
@@ -296,6 +311,14 @@ export class InMemoryAgentRepository implements AgentRepository {
           latestVersion: version,
           lifecycleStatus: "active",
           ownerHandle: actor.handle,
+          authority: createDefaultAuthority({
+            namespace,
+            name
+          }),
+          provenance: createDefaultProvenance({
+            ownerHandle: actor.handle,
+            ownerDisplayName: actor.displayName
+          }),
           downloadCount: 0,
           pinCount: 0,
           starCount: 0,

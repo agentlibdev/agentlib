@@ -17,6 +17,10 @@ import type {
   PublishRequest,
   PublishResult
 } from "@core/agent-record.js";
+import {
+  createDefaultAuthority,
+  createDefaultProvenance
+} from "@core/agent-provenance.js";
 import type { AgentRepository } from "@core/agent-repository.js";
 import type { GithubClient } from "@providers/github-client.js";
 import type { ArtifactStorage } from "@storage/artifact-storage.js";
@@ -25,10 +29,10 @@ const LIST_AGENTS_SQL =
   "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description, lifecycle_status AS lifecycleStatus, owner_handle AS ownerHandle FROM agent_list_view ORDER BY namespace, name LIMIT 50";
 
 const GET_AGENT_DETAIL_SQL =
-  "SELECT a.namespace, a.name, a.latest_version AS latestVersion, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC";
+  "SELECT a.namespace, a.name, a.latest_version AS latestVersion, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle, a.namespace_type AS namespaceType, a.verification_status AS verificationStatus, a.canonical_namespace AS canonicalNamespace, a.canonical_name AS canonicalName, a.claimed_by_namespace AS claimedByNamespace, a.source_type AS sourceType, a.source_url AS sourceUrl, a.source_repository_url AS sourceRepositoryUrl, a.original_author_handle AS originalAuthorHandle, a.original_author_name AS originalAuthorName, a.original_author_url AS originalAuthorUrl, a.submitted_by_handle AS submittedByHandle, a.submitted_by_name AS submittedByName, u.display_name AS ownerDisplayName, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC";
 
 const GET_AGENT_VERSION_DETAIL_SQL =
-  "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1";
+  "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle, a.namespace_type AS namespaceType, a.verification_status AS verificationStatus, a.canonical_namespace AS canonicalNamespace, a.canonical_name AS canonicalName, a.claimed_by_namespace AS claimedByNamespace, a.source_type AS sourceType, a.source_url AS sourceUrl, a.source_repository_url AS sourceRepositoryUrl, a.original_author_handle AS originalAuthorHandle, a.original_author_name AS originalAuthorName, a.original_author_url AS originalAuthorUrl, a.submitted_by_handle AS submittedByHandle, a.submitted_by_name AS submittedByName, u.display_name AS ownerDisplayName FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1";
 
 const CHECK_AGENT_SQL =
   "SELECT id, namespace, name, owner_user_id AS ownerUserId FROM agents WHERE namespace = ?1 AND name = ?2 LIMIT 1";
@@ -52,7 +56,7 @@ const CHECK_AGENT_VERSION_SQL =
   "SELECT av.id FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1";
 
 const INSERT_AGENT_SQL =
-  "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)";
+  "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, namespace_type, verification_status, canonical_namespace, canonical_name, claimed_by_namespace, source_type, source_url, source_repository_url, original_author_handle, original_author_name, original_author_url, submitted_by_handle, submitted_by_name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)";
 
 const UPDATE_AGENT_LATEST_SQL =
   "UPDATE agents SET latest_version = ?1, updated_at = ?2 WHERE id = ?3";
@@ -163,6 +167,20 @@ type AgentDetailRow = {
   latestVersion: string;
   lifecycleStatus: AgentLifecycleStatus;
   ownerHandle: string;
+  ownerDisplayName: string | null;
+  namespaceType: "official" | "community" | "mirror" | null;
+  verificationStatus: "unofficial" | "verified_mirror" | "claimed_by_upstream" | "official" | null;
+  canonicalNamespace: string | null;
+  canonicalName: string | null;
+  claimedByNamespace: string | null;
+  sourceType: "manual" | "github" | "gitlab" | "bitbucket" | "upload" | null;
+  sourceUrl: string | null;
+  sourceRepositoryUrl: string | null;
+  originalAuthorHandle: string | null;
+  originalAuthorName: string | null;
+  originalAuthorUrl: string | null;
+  submittedByHandle: string | null;
+  submittedByName: string | null;
   version: string;
   title: string;
   description: string;
@@ -180,6 +198,20 @@ type AgentVersionDetailRow = {
   publishedAt: string;
   lifecycleStatus: AgentLifecycleStatus;
   ownerHandle: string;
+  ownerDisplayName: string | null;
+  namespaceType: "official" | "community" | "mirror" | null;
+  verificationStatus: "unofficial" | "verified_mirror" | "claimed_by_upstream" | "official" | null;
+  canonicalNamespace: string | null;
+  canonicalName: string | null;
+  claimedByNamespace: string | null;
+  sourceType: "manual" | "github" | "gitlab" | "bitbucket" | "upload" | null;
+  sourceUrl: string | null;
+  sourceRepositoryUrl: string | null;
+  originalAuthorHandle: string | null;
+  originalAuthorName: string | null;
+  originalAuthorUrl: string | null;
+  submittedByHandle: string | null;
+  submittedByName: string | null;
 };
 
 type AgentRow = {
@@ -632,6 +664,25 @@ export class D1AgentRepository implements AgentRepository {
       latestVersion: firstRow.latestVersion,
       lifecycleStatus: firstRow.lifecycleStatus,
       ownerHandle: firstRow.ownerHandle,
+      authority: createDefaultAuthority({
+        namespace: firstRow.canonicalNamespace ?? firstRow.namespace,
+        name: firstRow.canonicalName ?? firstRow.name,
+        namespaceType: firstRow.namespaceType ?? "official",
+        verificationStatus: firstRow.verificationStatus ?? "official",
+        claimedByNamespace: firstRow.claimedByNamespace
+      }),
+      provenance: createDefaultProvenance({
+        ownerHandle: firstRow.ownerHandle,
+        ownerDisplayName: firstRow.ownerDisplayName,
+        sourceType: firstRow.sourceType ?? "manual",
+        sourceUrl: firstRow.sourceUrl,
+        sourceRepositoryUrl: firstRow.sourceRepositoryUrl,
+        originalAuthorHandle: firstRow.originalAuthorHandle,
+        originalAuthorName: firstRow.originalAuthorName,
+        originalAuthorUrl: firstRow.originalAuthorUrl,
+        submittedByHandle: firstRow.submittedByHandle,
+        submittedByName: firstRow.submittedByName
+      }),
       ...metrics,
       viewer: {
         hasPinned,
@@ -671,7 +722,26 @@ export class D1AgentRepository implements AgentRepository {
       manifestJson: row.manifestJson,
       publishedAt: row.publishedAt,
       lifecycleStatus: row.lifecycleStatus,
-      ownerHandle: row.ownerHandle
+      ownerHandle: row.ownerHandle,
+      authority: createDefaultAuthority({
+        namespace: row.canonicalNamespace ?? row.namespace,
+        name: row.canonicalName ?? row.name,
+        namespaceType: row.namespaceType ?? "official",
+        verificationStatus: row.verificationStatus ?? "official",
+        claimedByNamespace: row.claimedByNamespace
+      }),
+      provenance: createDefaultProvenance({
+        ownerHandle: row.ownerHandle,
+        ownerDisplayName: row.ownerDisplayName,
+        sourceType: row.sourceType ?? "manual",
+        sourceUrl: row.sourceUrl,
+        sourceRepositoryUrl: row.sourceRepositoryUrl,
+        originalAuthorHandle: row.originalAuthorHandle,
+        originalAuthorName: row.originalAuthorName,
+        originalAuthorUrl: row.originalAuthorUrl,
+        submittedByHandle: row.submittedByHandle,
+        submittedByName: row.submittedByName
+      })
     };
   }
 
@@ -755,6 +825,14 @@ export class D1AgentRepository implements AgentRepository {
     const metadata = payload.manifest.metadata;
     const now = new Date().toISOString();
     const userId = await upsertAuthenticatedUser(this.db, actor);
+    const authority = createDefaultAuthority({
+      namespace: metadata.namespace,
+      name: metadata.name
+    });
+    const provenance = createDefaultProvenance({
+      ownerHandle: actor.handle,
+      ownerDisplayName: actor.displayName
+    });
 
     const existingVersion = await this.db
       .prepare(CHECK_AGENT_VERSION_SQL)
@@ -785,7 +863,29 @@ export class D1AgentRepository implements AgentRepository {
     if (existingAgent.results.length === 0) {
       await this.db
         .prepare(INSERT_AGENT_SQL)
-        .bind(agentId, metadata.namespace, metadata.name, userId, "active", metadata.version, now, now)
+        .bind(
+          agentId,
+          metadata.namespace,
+          metadata.name,
+          userId,
+          "active",
+          metadata.version,
+          authority.namespaceType,
+          authority.verificationStatus,
+          authority.canonicalNamespace,
+          authority.canonicalName,
+          authority.claimedByNamespace,
+          provenance.sourceType,
+          provenance.sourceUrl,
+          provenance.sourceRepositoryUrl,
+          provenance.originalAuthorHandle,
+          provenance.originalAuthorName,
+          provenance.originalAuthorUrl,
+          provenance.submittedByHandle,
+          provenance.submittedByName,
+          now,
+          now
+        )
         .run();
       await this.db.prepare(INSERT_AGENT_METRICS_SQL).bind(agentId, now).run();
     } else {

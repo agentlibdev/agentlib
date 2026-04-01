@@ -24,7 +24,7 @@ async function waitForHealth(baseUrl = "http://127.0.0.1:8787") {
 const examplePath = process.argv[2];
 
 if (!examplePath) {
-  console.error("Usage: npm run publish:example:local -- /absolute/or/relative/example-dir");
+  console.error("Usage: npm run publish:dir:local -- /absolute/or/relative/example-dir");
   process.exit(1);
 }
 

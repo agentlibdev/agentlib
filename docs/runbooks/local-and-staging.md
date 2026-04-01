@@ -13,7 +13,7 @@ The current codebase has been verified in this shape:
 
 - `npm install`
 - `npm run build:web`
-- `npm run d1:reset:local`
+- `npm run db:reset:local`
 - `npm run dev:api:local`
 - `GET /health`
 - `GET /`
@@ -51,10 +51,10 @@ npm run build:web
 ### Reset local data
 
 ```bash
-npm run d1:reset:local
+npm run db:reset:local
 ```
 
-This recreates local D1 state under `.wrangler/state`, applies the initial migration, seeds providers, and inserts sample agents.
+This recreates local D1 state under `.wrangler/state`, applies all local SQL migrations in order, seeds providers, and inserts sample agents.
 
 ### Start the Worker
 
@@ -91,7 +91,7 @@ Expected results:
 Publish/import helpers:
 
 ```bash
-npm run publish:sample:local
+npm run publish:fixture:local
 npm run list:artifacts:local -- raul code-reviewer 0.3.0
 npm run import:github:local -- https://github.com/agentlibdev/agent-examples main
 ```
@@ -136,7 +136,7 @@ git clone <repo>
 cd agentlib
 npm install
 npm run build:web
-npm run d1:reset:local
+npm run db:reset:local
 npm run dev:api:local
 ```
 
@@ -178,7 +178,7 @@ This runbook verifies that a human can start and inspect the system on a VPS-lik
 
 ## Troubleshooting
 
-- If `d1:reset:local` fails, ensure Wrangler can write logs and open localhost ports on that machine.
+- If `db:reset:local` fails, ensure Wrangler can write logs and open localhost ports on that machine.
 - If `dev:api:local` says `Address already in use`, stop the previous Worker or free port `8787`.
-- If `/` works but `/api/...` fails, make sure the Worker started after `d1:reset:local`.
+- If `/` works but `/api/...` fails, make sure the Worker started after `db:reset:local`.
 - If you need separate frontend HMR while developing UI, use `npm run dev:web`, but that is not required for the staging-style single-process path above.

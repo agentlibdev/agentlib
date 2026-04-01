@@ -13,6 +13,33 @@ export type AgentListItem = {
 
 export type AgentLifecycleStatus = "active" | "deprecated" | "unmaintained";
 
+export type AgentNamespaceType = "official" | "community" | "mirror";
+
+export type AgentVerificationStatus =
+  | "unofficial"
+  | "verified_mirror"
+  | "claimed_by_upstream"
+  | "official";
+
+export type AgentAuthority = {
+  namespaceType: AgentNamespaceType;
+  verificationStatus: AgentVerificationStatus;
+  canonicalNamespace: string;
+  canonicalName: string;
+  claimedByNamespace: string | null;
+};
+
+export type AgentProvenance = {
+  sourceType: "manual" | "github" | "gitlab" | "bitbucket" | "upload";
+  sourceUrl: string | null;
+  sourceRepositoryUrl: string | null;
+  originalAuthorHandle: string | null;
+  originalAuthorName: string | null;
+  originalAuthorUrl: string | null;
+  submittedByHandle: string | null;
+  submittedByName: string | null;
+};
+
 export type AuthenticatedUser = {
   provider: "github" | "google";
   subject: string;
@@ -100,6 +127,8 @@ export type AgentDetail = {
   latestVersion: string;
   lifecycleStatus: AgentLifecycleStatus;
   ownerHandle: string;
+  authority: AgentAuthority;
+  provenance: AgentProvenance;
   downloadCount: number;
   pinCount: number;
   starCount: number;
@@ -121,6 +150,8 @@ export type AgentVersionDetail = {
   publishedAt: string;
   lifecycleStatus: AgentLifecycleStatus;
   ownerHandle: string;
+  authority: AgentAuthority;
+  provenance: AgentProvenance;
 };
 
 export type PublishArtifactInput = {

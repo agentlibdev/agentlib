@@ -126,11 +126,11 @@ agents/<namespace>/<name>/<version>/<path>
 Use the local scripts from the repo root:
 
 ```bash
-npm run d1:reset:local
+npm run db:reset:local
 npm run d1:list:local
 ```
 
-This creates a local D1 state directory, applies the initial schema, seeds providers, and inserts sample agent/version records for local development.
+This creates a local D1 state directory, applies all local SQL migrations in order, seeds providers, and inserts sample agent/version records for local development.
 
 The local seed scripts are safe to re-run on the same local D1 state. They are intended as idempotent fixtures, not as a data refresh mechanism.
 
@@ -138,24 +138,24 @@ To exercise the HTTP publish path against local D1:
 
 ```bash
 npm run dev:api:local
-npm run publish:sample:local
-npm run publish:example:local -- ../agent-examples
+npm run publish:fixture:local
+npm run publish:dir:local -- ../agent-examples
 npm run list:artifacts:local -- raul code-reviewer 0.3.0
 npm run download:artifact:local -- raul code-reviewer 0.3.0 README.md
 npm run d1:list:local
 npm run d1:list:artifacts:local
 ```
 
-`publish:sample:local` posts the fixed smoke fixture. `publish:example:local` publishes a real example package directory that already contains `agent.yaml` and `README.md`, with optional `agent.md` and `LICENSE` included when present.
+`publish:fixture:local` posts the fixed smoke fixture. `publish:dir:local` publishes a real example package directory that already contains `agent.yaml` and `README.md`, with optional `agent.md` and `LICENSE` included when present.
 
 To load a richer visual demo with multiple users, agents, artifacts, downloads, pins, and stars:
 
 ```bash
 npm run dev:api:local
-npm run populate:demo:local
+npm run demo:populate:local
 ```
 
-`populate:demo:local` targets the local API on `http://127.0.0.1:8787`, so it expects the Worker to already be running.
+`demo:populate:local` targets the local API on `http://127.0.0.1:8787`, so it expects the Worker to already be running.
 
 To run the same flow as a single local check:
 

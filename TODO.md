@@ -2,16 +2,16 @@
 
 ## Current State
 
-- Local seed reset is in place with `npm run d1:reset:local`.
-- Richer local demo population is in place with `npm run populate:demo:local`.
-- Generic local example publishing is in place with `npm run publish:example:local -- <example-dir>`.
+- Local seed reset is in place with `npm run db:reset:local`.
+- Richer local demo population is in place with `npm run demo:populate:local`.
+- Generic local example publishing is in place with `npm run publish:dir:local -- <example-dir>`.
 - The legacy `phase-2-registry-*` worktrees have been retired.
 
 ## Next Useful Work
 
-## [ ] 1. Smoke `publish:example:local` against a live local Worker
+## [ ] 1. Smoke `publish:dir:local` against a live local Worker
 - Start `npm run dev:api:local`
-- Run `npm run publish:example:local -- ../agent-examples`
+- Run `npm run publish:dir:local -- ../agent-examples`
 - Verify the published package appears in `GET /api/v1/agents`
 - Verify artifact listing and at least one artifact download
 
@@ -32,5 +32,5 @@
 
 ## Notes
 
-- `publish:example:local` is not the richer demo seed.
-- `populate:demo:local` remains the command that creates the expanded multi-user, multi-agent local demo with downloads, pins, and stars.
+- `publish:dir:local` is not the richer demo seed.
+- `demo:populate:local` remains the command that creates the expanded multi-user, multi-agent local demo with downloads, pins, and stars.
