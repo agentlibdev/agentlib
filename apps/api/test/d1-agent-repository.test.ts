@@ -127,6 +127,7 @@ class FakeDatabase {
         sql === "SELECT id, namespace, name, owner_user_id AS ownerUserId FROM agents WHERE namespace = ?1 AND name = ?2 LIMIT 1" ||
         sql === "SELECT user_id AS id FROM auth_identities WHERE provider = ?1 AND provider_subject = ?2 LIMIT 1" ||
         sql === "SELECT id FROM users WHERE email = ?1 LIMIT 1" ||
+        sql === "SELECT id FROM users WHERE handle = ?1 LIMIT 1" ||
         sql ===
           "INSERT INTO users (id, handle, display_name, email, avatar_url, bio, pronouns, company, location, website_url, time_zone_name, display_local_time, status_emoji, status_text, social_links_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, NULL, NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, '[]', ?6, ?7)" ||
         sql ===
@@ -600,6 +601,72 @@ test("D1AgentRepository links a second OAuth identity to the same user by email"
         entry.args[1] === "user_github_123456" &&
         entry.args[2] === "google" &&
         entry.args[3] === "google-123456"
+    )
+  );
+  assert.ok(
+    !database.runs.some((entry) => entry.sql.startsWith("INSERT INTO users "))
+  );
+});
+
+test("D1AgentRepository links an OAuth identity to an existing user with the same handle", async () => {
+  const database = new FakeDatabase({
+    "SELECT av.id FROM agents a JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1": {
+      results: []
+    },
+    "SELECT id, namespace, name FROM agents WHERE namespace = ?1 AND name = ?2 LIMIT 1": {
+      results: []
+    },
+    "SELECT user_id AS id FROM auth_identities WHERE provider = ?1 AND provider_subject = ?2 LIMIT 1": {
+      results: []
+    },
+    "SELECT id FROM users WHERE email = ?1 LIMIT 1": {
+      results: []
+    },
+    "SELECT id FROM users WHERE handle = ?1 LIMIT 1": {
+      results: [{ id: "user_seed_raul" }]
+    },
+    "INSERT INTO auth_identities (id, user_id, provider, provider_subject, created_at) VALUES (?1, ?2, ?3, ?4, ?5)": {
+      results: []
+    },
+    "UPDATE users SET handle = ?1, display_name = ?2, email = ?3, avatar_url = ?4, updated_at = ?5 WHERE id = ?6": {
+      results: []
+    },
+    "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, namespace_type, verification_status, canonical_namespace, canonical_name, claimed_by_namespace, source_type, source_url, source_repository_url, original_author_handle, original_author_name, original_author_url, submitted_by_handle, submitted_by_name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)": {
+      results: []
+    },
+    "INSERT INTO agent_versions (id, agent_id, version, title, description, license, manifest_json, readme_path, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)": {
+      results: []
+    }
+  });
+
+  const repository = new D1AgentRepository(
+    database as unknown as D1Database,
+    new FakeArtifactStorage()
+  );
+
+  await repository.publishAgentVersion(
+    {
+      manifest: {
+        metadata: {
+          namespace: "raul",
+          name: "support-triager",
+          version: "0.1.0",
+          title: "Support Triager",
+          description: "Routes inbound support requests."
+        }
+      },
+      readme: "# Support Triager\n",
+      artifacts: []
+    },
+    authenticatedUser
+  );
+
+  assert.ok(
+    database.runs.some(
+      (entry) =>
+        entry.sql ===
+          "INSERT INTO auth_identities (id, user_id, provider, provider_subject, created_at) VALUES (?1, ?2, ?3, ?4, ?5)" &&
+        entry.args[1] === "user_seed_raul"
     )
   );
   assert.ok(

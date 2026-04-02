@@ -43,6 +43,9 @@ const GET_USER_BY_IDENTITY_SQL =
 const GET_USER_BY_EMAIL_SQL =
   "SELECT id FROM users WHERE email = ?1 LIMIT 1";
 
+const GET_USER_BY_HANDLE_SQL =
+  "SELECT id FROM users WHERE handle = ?1 LIMIT 1";
+
 const INSERT_USER_SQL =
   "INSERT INTO users (id, handle, display_name, email, avatar_url, bio, pronouns, company, location, website_url, time_zone_name, display_local_time, status_emoji, status_text, social_links_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, NULL, NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, '[]', ?6, ?7)";
 
@@ -337,12 +340,18 @@ async function upsertAuthenticatedUser(
       ? await db.prepare(GET_USER_BY_EMAIL_SQL).bind(actor.email).all<{ id: string }>()
       : { results: [] };
 
+  const linkedByHandle =
+    !existingIdentity.results[0] && !linkedByEmail.results[0]
+      ? await db.prepare(GET_USER_BY_HANDLE_SQL).bind(actor.handle).all<{ id: string }>()
+      : { results: [] };
+
   const userId =
     existingIdentity.results[0]?.id ??
     linkedByEmail.results[0]?.id ??
+    linkedByHandle.results[0]?.id ??
     createId("user", [actor.email ?? actor.provider, actor.subject]);
 
-  if (!existingIdentity.results[0] && !linkedByEmail.results[0]) {
+  if (!existingIdentity.results[0] && !linkedByEmail.results[0] && !linkedByHandle.results[0]) {
     await db
       .prepare(INSERT_USER_SQL)
       .bind(
@@ -370,7 +379,7 @@ async function upsertAuthenticatedUser(
       .run();
   }
 
-  if (existingIdentity.results[0] || linkedByEmail.results[0]) {
+  if (existingIdentity.results[0] || linkedByEmail.results[0] || linkedByHandle.results[0]) {
     await db
       .prepare(UPDATE_USER_SQL)
       .bind(
