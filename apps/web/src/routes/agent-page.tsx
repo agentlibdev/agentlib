@@ -1,4 +1,4 @@
-import { Download, Settings2, Star, User } from "lucide-react";
+import { Download, Pin, Settings2, Star, User } from "lucide-react";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 
@@ -134,7 +134,7 @@ export function AgentPage({
                   <p className="mt-3 inline-flex items-center gap-2 text-3xl font-semibold text-slate-950 dark:text-gray-100">
                     <button
                       aria-label={detail.agent.viewer.hasPinned ? "Unpin agent" : "Pin agent"}
-                      className="rounded-md p-1 transition hover:bg-slate-100 dark:hover:bg-gray-800/70"
+                      className="inline-flex shrink-0 items-center justify-center rounded-md p-1 leading-none transition hover:bg-slate-100 dark:hover:bg-gray-800/70"
                       onClick={() => {
                         if (!session) {
                           setAuthNotice("pins");
@@ -148,20 +148,15 @@ export function AgentPage({
                       }}
                       type="button"
                     >
-                      <svg
+                      <Pin
                         aria-hidden="true"
-                        className={`h-5 w-5 ${
+                        className={`block h-5 w-5 ${
                           detail.agent.viewer.hasPinned
-                            ? "fill-amber-500 text-amber-500 dark:fill-amber-400 dark:text-amber-400"
+                            ? "text-amber-500 dark:text-amber-400"
                             : "text-amber-500 dark:text-amber-400"
                         }`}
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          d="M8 3.75a2.25 2.25 0 0 0-2.25 2.25v1.086c0 .534-.184 1.051-.52 1.465L3.5 10.625V12h7.25v8.25l1.25-.938L13.25 12h7.25v-1.375l-1.73-2.069a2.25 2.25 0 0 1-.52-1.465V6A2.25 2.25 0 0 0 16 3.75H8Z"
-                          fill="currentColor"
-                        />
-                      </svg>
+                        strokeWidth={2.1}
+                      />
                     </button>
                     {detail.agent.pinCount}
                   </p>
