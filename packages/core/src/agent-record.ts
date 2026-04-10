@@ -40,6 +40,17 @@ export type AgentProvenance = {
   submittedByName: string | null;
 };
 
+export type AgentTargetCompatibility = {
+  targetId: string;
+  builtFor: boolean;
+  tested: boolean;
+  adapterAvailable: boolean;
+};
+
+export type AgentCompatibility = {
+  targets: AgentTargetCompatibility[];
+};
+
 export type AuthenticatedUser = {
   provider: "github" | "google";
   subject: string;
@@ -129,6 +140,7 @@ export type AgentDetail = {
   ownerHandle: string;
   authority: AgentAuthority;
   provenance: AgentProvenance;
+  compatibility: AgentCompatibility;
   downloadCount: number;
   pinCount: number;
   starCount: number;
@@ -152,6 +164,7 @@ export type AgentVersionDetail = {
   ownerHandle: string;
   authority: AgentAuthority;
   provenance: AgentProvenance;
+  compatibility: AgentCompatibility;
 };
 
 export type PublishArtifactInput = {
@@ -180,6 +193,7 @@ export type PublishRequest = {
     metadata: PublishManifestMetadata;
   };
   readme: string;
+  compatibility?: AgentCompatibility;
   artifacts: PublishArtifactInput[];
 };
 
@@ -187,6 +201,10 @@ export type PublishResult = {
   namespace: string;
   name: string;
   version: string;
+};
+
+export type AgentVersionCompatibilityUpdateInput = {
+  compatibility: AgentCompatibility;
 };
 
 export type AgentLifecycleUpdateResult = {

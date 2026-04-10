@@ -2,6 +2,7 @@ import type { AgentRepository } from "@core/agent-repository.js";
 import { zipSync } from "fflate";
 import type {
   AccountProfileUpdateInput,
+  AgentCompatibility,
   AgentLifecycleStatus,
   GithubImportRequest,
   PublishRequest
@@ -43,7 +44,27 @@ function isValidPublishRequest(value: unknown): value is PublishRequest {
       metadata?.title &&
       metadata?.description &&
       typeof candidate.readme === "string" &&
+      isValidCompatibility(candidate.compatibility) &&
       Array.isArray(candidate.artifacts)
+  );
+}
+
+function isValidCompatibility(value: unknown): value is AgentCompatibility | undefined {
+  if (value === undefined) {
+    return true;
+  }
+
+  if (!value || typeof value !== "object" || !Array.isArray((value as AgentCompatibility).targets)) {
+    return false;
+  }
+
+  return (value as AgentCompatibility).targets.every(
+    (target) =>
+      typeof target?.targetId === "string" &&
+      target.targetId.trim().length > 0 &&
+      typeof target.builtFor === "boolean" &&
+      typeof target.tested === "boolean" &&
+      typeof target.adapterAvailable === "boolean"
   );
 }
 
@@ -337,6 +358,7 @@ export function createApp(
             ownerHandle: detail.ownerHandle,
             authority: detail.authority,
             provenance: detail.provenance,
+            compatibility: detail.compatibility,
             downloadCount: detail.downloadCount,
             pinCount: detail.pinCount,
             starCount: detail.starCount,
@@ -443,6 +465,73 @@ export function createApp(
         }
 
         return json({ version: detail });
+      }
+
+      if (request.method === "PATCH" && versionDetailMatch) {
+        if (!actor) {
+          return json(
+            {
+              error: {
+                code: "authentication_required",
+                message: "Authentication is required for this operation"
+              }
+            },
+            { status: 401 }
+          );
+        }
+
+        const payload = await request.json().catch(() => null) as { compatibility?: AgentCompatibility } | null;
+        if (!payload || !isValidCompatibility(payload.compatibility) || payload.compatibility === undefined) {
+          return json(
+            {
+              error: {
+                code: "invalid_request",
+                message: "Compatibility payload is invalid"
+              }
+            },
+            { status: 400 }
+          );
+        }
+
+        const [, namespace, name, version] = versionDetailMatch;
+
+        try {
+          const result = await repository.updateAgentVersionCompatibility?.(
+            namespace,
+            name,
+            version,
+            payload.compatibility,
+            actor
+          );
+
+          if (!result) {
+            return json(
+              {
+                error: {
+                  code: "agent_version_not_found",
+                  message: "Agent version not found"
+                }
+              },
+              { status: 404 }
+            );
+          }
+
+          return json({ version: result });
+        } catch (error) {
+          if (error instanceof Error && error.message === "forbidden_version_update") {
+            return json(
+              {
+                error: {
+                  code: "forbidden",
+                  message: "You cannot edit this version"
+                }
+              },
+              { status: 403 }
+            );
+          }
+
+          throw error;
+        }
       }
 
       const artifactsMatch = url.pathname.match(

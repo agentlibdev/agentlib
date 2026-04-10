@@ -5,6 +5,7 @@ import type {
   AgentLifecycleUpdateResult,
   AgentMetricResult,
   AccountSummary,
+  AgentCompatibility,
   AuthenticatedUser,
   AgentListResult,
   AgentVersionDetail,
@@ -60,6 +61,13 @@ export interface AgentRepository {
     lifecycleStatus: AgentLifecycleStatus,
     actor: AuthenticatedUser
   ): Promise<AgentLifecycleUpdateResult>;
+  updateAgentVersionCompatibility?(
+    namespace: string,
+    name: string,
+    version: string,
+    compatibility: AgentCompatibility,
+    actor: AuthenticatedUser
+  ): Promise<AgentVersionDetail | null>;
   getAccountSummary?(actor: AuthenticatedUser): Promise<AccountSummary>;
   updateAccountProfile?(
     profile: AccountProfileUpdateInput,

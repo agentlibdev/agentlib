@@ -35,6 +35,22 @@ function createSamplePublishRequest(version = "0.3.0") {
       }
     },
     readme: "# Code Reviewer\n",
+    compatibility: {
+      targets: [
+        {
+          targetId: "codex",
+          builtFor: true,
+          tested: true,
+          adapterAvailable: true
+        },
+        {
+          targetId: "github-copilot",
+          builtFor: true,
+          tested: false,
+          adapterAvailable: true
+        }
+      ]
+    },
     artifacts: [
       {
         path: "agent.yaml",
@@ -103,6 +119,150 @@ test("GET /api/v1/agents returns a paginated agent list", async () => {
   });
 });
 
+test("PATCH /api/v1/agents/:namespace/:name/versions/:version updates version compatibility", async () => {
+  const app = createApp({
+    listAgents: async () => ({
+      items: [],
+      nextCursor: null
+    }),
+    getAgentDetail: async () => null,
+    listAgentVersions: async () => null,
+    getAgentVersionDetail: async () => null,
+    listArtifacts: async () => null,
+    getArtifactContent: async () => null,
+    publishAgentVersion: async () => {
+      throw new Error("unexpected");
+    },
+    updateAgentVersionCompatibility: async (namespace, name, version, compatibility, actor) => {
+      assert.equal(namespace, "raul");
+      assert.equal(name, "code-reviewer");
+      assert.equal(version, "0.3.0");
+      assert.equal(actor.handle, "raul");
+      assert.deepEqual(compatibility, {
+        targets: [
+          {
+            targetId: "codex",
+            builtFor: true,
+            tested: true,
+            adapterAvailable: true
+          },
+          {
+            targetId: "langchain",
+            builtFor: false,
+            tested: false,
+            adapterAvailable: true
+          }
+        ]
+      });
+
+      return {
+        namespace: "raul",
+        name: "code-reviewer",
+        version: "0.3.0",
+        title: "Code Reviewer",
+        description: "Reviews pull requests for correctness and maintainability.",
+        license: "MIT",
+        manifestJson: "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.3.0\"}}",
+        publishedAt: "2026-04-10T10:00:00.000Z",
+        lifecycleStatus: "active",
+        ownerHandle: "raul",
+        authority: {
+          namespaceType: "official",
+          verificationStatus: "official",
+          canonicalNamespace: "raul",
+          canonicalName: "code-reviewer",
+          claimedByNamespace: null
+        },
+        provenance: {
+          sourceType: "manual",
+          sourceUrl: null,
+          sourceRepositoryUrl: null,
+          originalAuthorHandle: "raul",
+          originalAuthorName: "Raul",
+          originalAuthorUrl: "https://agentlib.dev/raul",
+          submittedByHandle: "raul",
+          submittedByName: "Raul"
+        },
+        compatibility
+      };
+    }
+  });
+
+  const response = await app.fetch(
+    new Request("https://agentlib.dev/api/v1/agents/raul/code-reviewer/versions/0.3.0", {
+      method: "PATCH",
+      headers: authenticatedHeaders,
+      body: JSON.stringify({
+        compatibility: {
+          targets: [
+            {
+              targetId: "codex",
+              builtFor: true,
+              tested: true,
+              adapterAvailable: true
+            },
+            {
+              targetId: "langchain",
+              builtFor: false,
+              tested: false,
+              adapterAvailable: true
+            }
+          ]
+        }
+      })
+    })
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    version: {
+      namespace: "raul",
+      name: "code-reviewer",
+      version: "0.3.0",
+      title: "Code Reviewer",
+      description: "Reviews pull requests for correctness and maintainability.",
+      license: "MIT",
+      manifestJson: "{\"metadata\":{\"namespace\":\"raul\",\"name\":\"code-reviewer\",\"version\":\"0.3.0\"}}",
+      publishedAt: "2026-04-10T10:00:00.000Z",
+      lifecycleStatus: "active",
+      ownerHandle: "raul",
+      authority: {
+        namespaceType: "official",
+        verificationStatus: "official",
+        canonicalNamespace: "raul",
+        canonicalName: "code-reviewer",
+        claimedByNamespace: null
+      },
+      provenance: {
+        sourceType: "manual",
+        sourceUrl: null,
+        sourceRepositoryUrl: null,
+        originalAuthorHandle: "raul",
+        originalAuthorName: "Raul",
+        originalAuthorUrl: "https://agentlib.dev/raul",
+        submittedByHandle: "raul",
+        submittedByName: "Raul"
+      },
+      compatibility: {
+        targets: [
+          {
+            targetId: "codex",
+            builtFor: true,
+            tested: true,
+            adapterAvailable: true
+          },
+          {
+            targetId: "langchain",
+            builtFor: false,
+            tested: false,
+            adapterAvailable: true
+          }
+        ]
+      }
+    }
+  });
+});
+
 test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
   const app = createApp({
     listAgents: async () => ({
@@ -138,6 +298,22 @@ test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
         originalAuthorUrl: "https://agentlib.dev/raul",
         submittedByHandle: "raul",
         submittedByName: "Raul"
+      },
+      compatibility: {
+        targets: [
+          {
+            targetId: "codex",
+            builtFor: true,
+            tested: true,
+            adapterAvailable: true
+          },
+          {
+            targetId: "openclaw",
+            builtFor: false,
+            tested: false,
+            adapterAvailable: true
+          }
+        ]
       },
       downloadCount: 42,
       pinCount: 7,
@@ -185,6 +361,22 @@ test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
         originalAuthorUrl: "https://agentlib.dev/raul",
         submittedByHandle: "raul",
         submittedByName: "Raul"
+      },
+      compatibility: {
+        targets: [
+          {
+            targetId: "codex",
+            builtFor: true,
+            tested: true,
+            adapterAvailable: true
+          },
+          {
+            targetId: "openclaw",
+            builtFor: false,
+            tested: false,
+            adapterAvailable: true
+          }
+        ]
       },
       downloadCount: 42,
       pinCount: 7,
@@ -241,6 +433,16 @@ test("GET /api/v1/agents/:namespace/:name includes viewer social state for the a
         submittedByHandle: "raul",
         submittedByName: "Raul"
       },
+      compatibility: {
+        targets: [
+          {
+            targetId: "codex",
+            builtFor: true,
+            tested: true,
+            adapterAvailable: true
+          }
+        ]
+      },
       downloadCount: 42,
       pinCount: 7,
       starCount: 15,
@@ -282,6 +484,16 @@ test("GET /api/v1/agents/:namespace/:name includes viewer social state for the a
         originalAuthorUrl: "https://agentlib.dev/raul",
         submittedByHandle: "raul",
         submittedByName: "Raul"
+      },
+      compatibility: {
+        targets: [
+          {
+            targetId: "codex",
+            builtFor: true,
+            tested: true,
+            adapterAvailable: true
+          }
+        ]
       },
       downloadCount: 42,
       pinCount: 7,
@@ -416,6 +628,22 @@ test("GET /api/v1/agents/:namespace/:name/versions/:version returns one version 
         originalAuthorUrl: "https://agentlib.dev/raul",
         submittedByHandle: "raul",
         submittedByName: "Raul"
+      },
+      compatibility: {
+        targets: [
+          {
+            targetId: "codex",
+            builtFor: true,
+            tested: true,
+            adapterAvailable: true
+          },
+          {
+            targetId: "langchain",
+            builtFor: false,
+            tested: false,
+            adapterAvailable: true
+          }
+        ]
       }
     })
   });
@@ -453,6 +681,22 @@ test("GET /api/v1/agents/:namespace/:name/versions/:version returns one version 
         originalAuthorUrl: "https://agentlib.dev/raul",
         submittedByHandle: "raul",
         submittedByName: "Raul"
+      },
+      compatibility: {
+        targets: [
+          {
+            targetId: "codex",
+            builtFor: true,
+            tested: true,
+            adapterAvailable: true
+          },
+          {
+            targetId: "langchain",
+            builtFor: false,
+            tested: false,
+            adapterAvailable: true
+          }
+        ]
       }
     }
   });
@@ -471,6 +715,22 @@ test("POST /api/v1/publish creates a new agent version", async () => {
     getArtifactContent: async () => null,
     publishAgentVersion: async (payload, actor) => {
       assert.equal(actor.handle, "raul");
+      assert.deepEqual(payload.compatibility, {
+        targets: [
+          {
+            targetId: "codex",
+            builtFor: true,
+            tested: true,
+            adapterAvailable: true
+          },
+          {
+            targetId: "github-copilot",
+            builtFor: true,
+            tested: false,
+            adapterAvailable: true
+          }
+        ]
+      });
       return {
       namespace: payload.manifest.metadata.namespace,
       name: payload.manifest.metadata.name,
@@ -503,6 +763,22 @@ test("POST /api/v1/publish creates a new agent version", async () => {
           }
         },
         readme: "# Code Reviewer\n",
+        compatibility: {
+          targets: [
+            {
+              targetId: "codex",
+              builtFor: true,
+              tested: true,
+              adapterAvailable: true
+            },
+            {
+              targetId: "github-copilot",
+              builtFor: true,
+              tested: false,
+              adapterAvailable: true
+            }
+          ]
+        },
         artifacts: [
           {
             path: "agent.yaml",

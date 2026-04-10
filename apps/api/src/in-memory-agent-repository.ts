@@ -18,6 +18,11 @@ import type {
   PublishResult
 } from "@core/agent-record.js";
 import {
+  cloneCompatibility,
+  createDefaultCompatibility,
+  createEmptyCompatibility
+} from "@core/agent-compatibility.js";
+import {
   createDefaultAuthority,
   createDefaultProvenance
 } from "@core/agent-provenance.js";
@@ -40,6 +45,10 @@ const seedAgent: AgentDetail = {
     ownerDisplayName: "Raul",
     originalAuthorUrl: "https://agentlib.dev/raul"
   }),
+  compatibility: createDefaultCompatibility({
+    namespace: "raul",
+    name: "code-reviewer"
+  }),
   downloadCount: 0,
   pinCount: 0,
   starCount: 0,
@@ -57,9 +66,22 @@ const seedAgent: AgentDetail = {
   ]
 };
 
+const seedVersionCompatibility = new Map<string, AgentDetail["compatibility"]>([
+  [
+    "raul/code-reviewer/0.1.0",
+    createDefaultCompatibility({
+      namespace: "raul",
+      name: "code-reviewer"
+    })
+  ]
+]);
+
 export class InMemoryAgentRepository implements AgentRepository {
   private readonly profiles = new Map<string, InMemoryProfile>();
   private readonly agents = new Map<string, AgentDetail>([[`${seedAgent.namespace}/${seedAgent.name}`, seedAgent]]);
+  private readonly versionCompatibility = new Map<string, AgentDetail["compatibility"]>(
+    seedVersionCompatibility
+  );
   private readonly artifacts = new Map<string, ArtifactContent[]>();
   private readonly imports = new Map<string, GithubImportResult>();
   private readonly metrics = new Map<string, { downloadCount: number; pinCount: number; starCount: number }>([
@@ -185,6 +207,9 @@ export class InMemoryAgentRepository implements AgentRepository {
 
     return {
       ...detail,
+      compatibility: cloneCompatibility(
+        this.versionCompatibility.get(`${namespace}/${name}/${detail.latestVersion}`) ?? detail.compatibility
+      ),
       ...(this.metrics.get(`${namespace}/${name}`) ?? {
         downloadCount: 0,
         pinCount: 0,
@@ -232,7 +257,10 @@ export class InMemoryAgentRepository implements AgentRepository {
       lifecycleStatus: detail.lifecycleStatus,
       ownerHandle: detail.ownerHandle,
       authority: detail.authority,
-      provenance: detail.provenance
+      provenance: detail.provenance,
+      compatibility: cloneCompatibility(
+        this.versionCompatibility.get(`${namespace}/${name}/${version}`) ?? detail.compatibility
+      )
     };
   }
 
@@ -303,6 +331,7 @@ export class InMemoryAgentRepository implements AgentRepository {
       ? {
           ...existing,
           latestVersion: version,
+          compatibility: cloneCompatibility(payload.compatibility ?? createEmptyCompatibility()),
           versions: [newVersion, ...existing.versions]
         }
       : {
@@ -319,6 +348,7 @@ export class InMemoryAgentRepository implements AgentRepository {
             ownerHandle: actor.handle,
             ownerDisplayName: actor.displayName
           }),
+          compatibility: cloneCompatibility(payload.compatibility ?? createEmptyCompatibility()),
           downloadCount: 0,
           pinCount: 0,
           starCount: 0,
@@ -330,6 +360,10 @@ export class InMemoryAgentRepository implements AgentRepository {
         };
 
     this.agents.set(key, updated);
+    this.versionCompatibility.set(
+      `${namespace}/${name}/${version}`,
+      cloneCompatibility(payload.compatibility ?? createEmptyCompatibility())
+    );
     this.metrics.set(key, this.metrics.get(key) ?? { downloadCount: 0, pinCount: 0, starCount: 0 });
     this.artifacts.set(
       `${namespace}/${name}/${version}`,
@@ -341,6 +375,34 @@ export class InMemoryAgentRepository implements AgentRepository {
     );
 
     return { namespace, name, version };
+  }
+
+  async updateAgentVersionCompatibility(
+    namespace: string,
+    name: string,
+    version: string,
+    compatibility: AgentDetail["compatibility"],
+    actor: AuthenticatedUser
+  ): Promise<AgentVersionDetail | null> {
+    const detail = this.agents.get(`${namespace}/${name}`);
+    if (!detail || !detail.versions.some((entry) => entry.version === version)) {
+      return null;
+    }
+
+    if (detail.ownerHandle !== actor.handle) {
+      throw new Error("forbidden_version_update");
+    }
+
+    this.versionCompatibility.set(`${namespace}/${name}/${version}`, cloneCompatibility(compatibility));
+
+    if (detail.latestVersion === version) {
+      this.agents.set(`${namespace}/${name}`, {
+        ...detail,
+        compatibility: cloneCompatibility(compatibility)
+      });
+    }
+
+    return this.getAgentVersionDetail(namespace, name, version);
   }
 
   async importGithubRepository(

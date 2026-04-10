@@ -1,5 +1,6 @@
 import type {
   AccountProfileUpdateInput,
+  AgentCompatibility,
   AgentDetail,
   AgentLifecycleStatus,
   AgentLifecycleUpdateResult,
@@ -18,6 +19,11 @@ import type {
   PublishResult
 } from "@core/agent-record.js";
 import {
+  createDefaultCompatibility,
+  createEmptyCompatibility,
+  parseCompatibilityJson
+} from "@core/agent-compatibility.js";
+import {
   createDefaultAuthority,
   createDefaultProvenance
 } from "@core/agent-provenance.js";
@@ -29,10 +35,10 @@ const LIST_AGENTS_SQL =
   "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description, lifecycle_status AS lifecycleStatus, owner_handle AS ownerHandle FROM agent_list_view ORDER BY namespace, name LIMIT 50";
 
 const GET_AGENT_DETAIL_SQL =
-  "SELECT a.namespace, a.name, a.latest_version AS latestVersion, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle, a.namespace_type AS namespaceType, a.verification_status AS verificationStatus, a.canonical_namespace AS canonicalNamespace, a.canonical_name AS canonicalName, a.claimed_by_namespace AS claimedByNamespace, a.source_type AS sourceType, a.source_url AS sourceUrl, a.source_repository_url AS sourceRepositoryUrl, a.original_author_handle AS originalAuthorHandle, a.original_author_name AS originalAuthorName, a.original_author_url AS originalAuthorUrl, a.submitted_by_handle AS submittedByHandle, a.submitted_by_name AS submittedByName, u.display_name AS ownerDisplayName, av.version, av.title, av.description, av.published_at AS publishedAt FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC";
+  "SELECT a.namespace, a.name, a.latest_version AS latestVersion, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle, a.namespace_type AS namespaceType, a.verification_status AS verificationStatus, a.canonical_namespace AS canonicalNamespace, a.canonical_name AS canonicalName, a.claimed_by_namespace AS claimedByNamespace, a.source_type AS sourceType, a.source_url AS sourceUrl, a.source_repository_url AS sourceRepositoryUrl, a.original_author_handle AS originalAuthorHandle, a.original_author_name AS originalAuthorName, a.original_author_url AS originalAuthorUrl, a.submitted_by_handle AS submittedByHandle, a.submitted_by_name AS submittedByName, u.display_name AS ownerDisplayName, av.version, av.title, av.description, av.published_at AS publishedAt, av.compatibility_json AS compatibilityJson FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC";
 
 const GET_AGENT_VERSION_DETAIL_SQL =
-  "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle, a.namespace_type AS namespaceType, a.verification_status AS verificationStatus, a.canonical_namespace AS canonicalNamespace, a.canonical_name AS canonicalName, a.claimed_by_namespace AS claimedByNamespace, a.source_type AS sourceType, a.source_url AS sourceUrl, a.source_repository_url AS sourceRepositoryUrl, a.original_author_handle AS originalAuthorHandle, a.original_author_name AS originalAuthorName, a.original_author_url AS originalAuthorUrl, a.submitted_by_handle AS submittedByHandle, a.submitted_by_name AS submittedByName, u.display_name AS ownerDisplayName FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1";
+  "SELECT a.namespace, a.name, av.version, av.title, av.description, av.license, av.manifest_json AS manifestJson, av.published_at AS publishedAt, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle, a.namespace_type AS namespaceType, a.verification_status AS verificationStatus, a.canonical_namespace AS canonicalNamespace, a.canonical_name AS canonicalName, a.claimed_by_namespace AS claimedByNamespace, a.source_type AS sourceType, a.source_url AS sourceUrl, a.source_repository_url AS sourceRepositoryUrl, a.original_author_handle AS originalAuthorHandle, a.original_author_name AS originalAuthorName, a.original_author_url AS originalAuthorUrl, a.submitted_by_handle AS submittedByHandle, a.submitted_by_name AS submittedByName, u.display_name AS ownerDisplayName, av.compatibility_json AS compatibilityJson FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 AND av.version = ?3 LIMIT 1";
 
 const CHECK_AGENT_SQL =
   "SELECT id, namespace, name, owner_user_id AS ownerUserId FROM agents WHERE namespace = ?1 AND name = ?2 LIMIT 1";
@@ -68,7 +74,10 @@ const UPDATE_AGENT_LIFECYCLE_SQL =
   "UPDATE agents SET lifecycle_status = ?1, updated_at = ?2 WHERE id = ?3";
 
 const INSERT_AGENT_VERSION_SQL =
-  "INSERT INTO agent_versions (id, agent_id, version, title, description, license, manifest_json, readme_path, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)";
+  "INSERT INTO agent_versions (id, agent_id, version, title, description, license, manifest_json, readme_path, compatibility_json, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)";
+
+const UPDATE_AGENT_VERSION_COMPATIBILITY_SQL =
+  "UPDATE agent_versions SET compatibility_json = ?1 WHERE id = ?2";
 
 const INSERT_ARTIFACT_SQL =
   "INSERT INTO artifacts (id, agent_version_id, path, media_type, size_bytes, sha256, r2_key) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)";
@@ -188,6 +197,7 @@ type AgentDetailRow = {
   title: string;
   description: string;
   publishedAt: string;
+  compatibilityJson: string | null;
 };
 
 type AgentVersionDetailRow = {
@@ -215,6 +225,7 @@ type AgentVersionDetailRow = {
   originalAuthorUrl: string | null;
   submittedByHandle: string | null;
   submittedByName: string | null;
+  compatibilityJson: string | null;
 };
 
 type AgentRow = {
@@ -692,6 +703,13 @@ export class D1AgentRepository implements AgentRepository {
         submittedByHandle: firstRow.submittedByHandle,
         submittedByName: firstRow.submittedByName
       }),
+      compatibility: parseCompatibilityJson(
+        firstRow.compatibilityJson,
+        createDefaultCompatibility({
+          namespace: firstRow.namespace,
+          name: firstRow.name
+        })
+      ),
       ...metrics,
       viewer: {
         hasPinned,
@@ -750,7 +768,14 @@ export class D1AgentRepository implements AgentRepository {
         originalAuthorUrl: row.originalAuthorUrl,
         submittedByHandle: row.submittedByHandle,
         submittedByName: row.submittedByName
-      })
+      }),
+      compatibility: parseCompatibilityJson(
+        row.compatibilityJson,
+        createDefaultCompatibility({
+          namespace: row.namespace,
+          name: row.name
+        })
+      )
     };
   }
 
@@ -918,6 +943,7 @@ export class D1AgentRepository implements AgentRepository {
         metadata.license ?? null,
         JSON.stringify(payload.manifest),
         "README.md",
+        JSON.stringify(payload.compatibility ?? createEmptyCompatibility()),
         now
       )
       .run();
@@ -962,6 +988,31 @@ export class D1AgentRepository implements AgentRepository {
       name: metadata.name,
       version: metadata.version
     };
+  }
+
+  async updateAgentVersionCompatibility(
+    namespace: string,
+    name: string,
+    version: string,
+    compatibility: AgentCompatibility,
+    actor: AuthenticatedUser
+  ): Promise<AgentVersionDetail | null> {
+    const detail = await this.getAgentVersionDetail(namespace, name, version);
+    if (!detail) {
+      return null;
+    }
+
+    if (detail.ownerHandle !== actor.handle) {
+      throw new Error("forbidden_version_update");
+    }
+
+    const versionId = createId("agent_version", [namespace, name, version]);
+    await this.db
+      .prepare(UPDATE_AGENT_VERSION_COMPATIBILITY_SQL)
+      .bind(JSON.stringify(compatibility), versionId)
+      .run();
+
+    return this.getAgentVersionDetail(namespace, name, version);
   }
 
   async importGithubRepository(

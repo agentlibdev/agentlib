@@ -13,7 +13,17 @@ test("buildManualPublishRequest assembles manifest, readme, and uploaded artifac
       description: "Reviews pull requests for correctness and maintainability.",
       license: "MIT",
       summary: "Reviews pull requests with a focus on correctness and maintainability.",
-      readme: "# Code Reviewer\n"
+      readme: "# Code Reviewer\n",
+      compatibility: {
+        targets: [
+          {
+            targetId: "codex",
+            builtFor: true,
+            tested: true,
+            adapterAvailable: true
+          }
+        ]
+      }
     },
     [
       new File(["apiVersion: agentlib.dev/v1alpha1\n"], "agent.yaml", {
@@ -45,6 +55,16 @@ test("buildManualPublishRequest assembles manifest, readme, and uploaded artifac
   });
 
   assert.equal(payload.readme, "# Code Reviewer\n");
+  assert.deepEqual(payload.compatibility, {
+    targets: [
+      {
+        targetId: "codex",
+        builtFor: true,
+        tested: true,
+        adapterAvailable: true
+      }
+    ]
+  });
   assert.deepEqual(payload.artifacts, [
     {
       path: "agent.yaml",

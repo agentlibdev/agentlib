@@ -12,11 +12,18 @@ Expose client compatibility metadata in the registry UI once the CLI target mode
 
 ## Suggested Data Shape
 
-The registry API should eventually expose:
+The registry API now uses:
 
-- `builtForTargets: string[]`
-- `testedTargets: string[]`
-- `availableAdapters: string[]`
+```ts
+compatibility: {
+  targets: Array<{
+    targetId: string;
+    builtFor: boolean;
+    tested: boolean;
+    adapterAvailable: boolean;
+  }>;
+}
+```
 
 Those fields should appear on:
 
@@ -39,6 +46,12 @@ Secondary placement:
 
 - no registry migration yet
 - no publish UI for editing compatibility yet
-- no web implementation yet
+- no persistent compatibility editing yet
 
-This note is a follow-up target after the CLI target-adapter model is in place.
+## Current Implementation Notes
+
+- detail pages render grouped compatibility badges
+- the first slice uses server-side defaults for demo agents
+- newly published agents currently default to empty compatibility
+
+This note remains a follow-up target for persistence and publish-time editing after the CLI target-adapter model is in place.

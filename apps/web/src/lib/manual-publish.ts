@@ -1,4 +1,4 @@
-import type { PublishRequest } from "./types.js";
+import type { AgentCompatibility, PublishRequest } from "./types.js";
 
 export type ManualPublishInput = {
   namespace: string;
@@ -9,6 +9,7 @@ export type ManualPublishInput = {
   license: string;
   summary: string;
   readme: string;
+  compatibility: AgentCompatibility;
 };
 
 async function encodeFile(file: File) {
@@ -39,6 +40,7 @@ export async function buildManualPublishRequest(
         tools: []
       }
     },
+    compatibility: input.compatibility,
     readme: input.readme,
     artifacts: await Promise.all(
       files.map(async (file) => ({

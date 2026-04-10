@@ -2,8 +2,9 @@ import { startTransition, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { FileUp, PackagePlus, PencilRuler } from "lucide-react";
 
+import { CompatibilityEditor } from "../components/compatibility-editor.js";
 import { buildManualPublishRequest } from "../lib/manual-publish.js";
-import type { PublishRequest, SessionResponse } from "../lib/types.js";
+import type { AgentCompatibility, PublishRequest, SessionResponse } from "../lib/types.js";
 
 type ManualPublishPageProps = {
   onNavigate: (path: string) => void;
@@ -20,6 +21,7 @@ type FormState = {
   license: string;
   summary: string;
   readme: string;
+  compatibility: AgentCompatibility;
 };
 
 const initialState: FormState = {
@@ -30,7 +32,10 @@ const initialState: FormState = {
   description: "",
   license: "MIT",
   summary: "",
-  readme: "# Agent Title\n"
+  readme: "# Agent Title\n",
+  compatibility: {
+    targets: []
+  }
 };
 
 export function ManualPublishPage({ onNavigate, onPublish, session }: ManualPublishPageProps) {
@@ -118,6 +123,14 @@ export function ManualPublishPage({ onNavigate, onPublish, session }: ManualPubl
               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">README</span>
               <textarea className="app-textarea min-h-[320px]" onChange={(event) => updateField("readme", event.target.value)} required rows={14} value={form.readme} />
             </label>
+
+            <div className="space-y-3">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Compatibility</span>
+              <CompatibilityEditor
+                compatibility={form.compatibility}
+                onChange={(compatibility) => updateField("compatibility", compatibility)}
+              />
+            </div>
           </div>
         </section>
       </form>

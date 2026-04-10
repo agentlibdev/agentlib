@@ -27,6 +27,7 @@ import {
   logoutSession,
   publishAgent,
   publishImportDraft,
+  updateVersionCompatibility,
   updateAccountProfile,
   updateAgentLifecycle
 } from "./lib/api.js";
@@ -225,6 +226,16 @@ export function App() {
     setRefreshKey((value) => value + 1);
   }
 
+  async function handleUpdateVersionCompatibility(
+    namespace: string,
+    name: string,
+    version: string,
+    compatibility: AgentVersionDetailResponse["version"]["compatibility"]
+  ) {
+    await updateVersionCompatibility(namespace, name, version, { compatibility });
+    setRefreshKey((value) => value + 1);
+  }
+
   async function handleRecordMetric(
     namespace: string,
     name: string,
@@ -379,6 +390,12 @@ export function App() {
 
         if (route.name === "agent") {
           const detail: AgentDetailResponse = await fetchAgent(route.namespace, route.nameParam);
+          const latestReadmePreview = await fetchArtifactPreview(
+            route.namespace,
+            route.nameParam,
+            detail.agent.latestVersion,
+            "README.md"
+          ).catch(() => null);
           if (!cancelled) {
             setState({
               status: "ready",
@@ -386,6 +403,7 @@ export function App() {
                 <AgentPage
                   breadcrumbs={buildBreadcrumbs(route)}
                   detail={detail}
+                  latestReadmePreview={latestReadmePreview}
                   onRecordMetric={handleRecordMetric}
                   onRemoveMetric={handleRemoveMetric}
                   onUpdateLifecycle={handleUpdateLifecycle}
@@ -415,6 +433,7 @@ export function App() {
                   detail={detail}
                   onNavigate={navigate}
                   onRecordDownload={handleRecordDownload}
+                  onUpdateCompatibility={handleUpdateVersionCompatibility}
                   session={currentSession}
                 />
               )

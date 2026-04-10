@@ -25,6 +25,28 @@ export type AgentVersionRecord = {
   publishedAt: string;
 };
 
+export type AgentTargetCompatibility = {
+  targetId: string;
+  builtFor: boolean;
+  tested: boolean;
+  adapterAvailable: boolean;
+};
+
+export type AgentCompatibility = {
+  targets: AgentTargetCompatibility[];
+};
+
+export type AgentProvenance = {
+  sourceType: "manual" | "github" | "gitlab" | "bitbucket" | "upload";
+  sourceUrl: string | null;
+  sourceRepositoryUrl: string | null;
+  originalAuthorHandle: string | null;
+  originalAuthorName: string | null;
+  originalAuthorUrl: string | null;
+  submittedByHandle: string | null;
+  submittedByName: string | null;
+};
+
 export type AgentDetailResponse = {
   agent: {
     namespace: string;
@@ -32,6 +54,8 @@ export type AgentDetailResponse = {
     latestVersion: string;
     lifecycleStatus: "active" | "deprecated" | "unmaintained";
     ownerHandle: string;
+    provenance: AgentProvenance;
+    compatibility: AgentCompatibility;
     downloadCount: number;
     pinCount: number;
     starCount: number;
@@ -55,6 +79,8 @@ export type AgentVersionDetailResponse = {
     publishedAt: string;
     lifecycleStatus: "active" | "deprecated" | "unmaintained";
     ownerHandle: string;
+    provenance: AgentProvenance;
+    compatibility: AgentCompatibility;
   };
 };
 
@@ -196,6 +222,7 @@ export type PublishRequest = {
       tools: [];
     };
   };
+  compatibility?: AgentCompatibility;
   readme: string;
   artifacts: PublishArtifactInput[];
 };
@@ -206,6 +233,14 @@ export type PublishResponse = {
     name: string;
     version: string;
   };
+};
+
+export type AgentVersionCompatibilityUpdateRequest = {
+  compatibility: AgentCompatibility;
+};
+
+export type AgentVersionCompatibilityUpdateResponse = {
+  version: AgentVersionDetailResponse["version"];
 };
 
 export type ImportDraftArtifact = {

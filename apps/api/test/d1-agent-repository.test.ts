@@ -26,6 +26,7 @@ type StatementResult<Row> = {
 
 function normalizeLegacySql(sql: string): string {
   return sql
+    .replace(", av.compatibility_json AS compatibilityJson", "")
     .replace(
       ", a.namespace_type AS namespaceType, a.verification_status AS verificationStatus, a.canonical_namespace AS canonicalNamespace, a.canonical_name AS canonicalName, a.claimed_by_namespace AS claimedByNamespace, a.source_type AS sourceType, a.source_url AS sourceUrl, a.source_repository_url AS sourceRepositoryUrl, a.original_author_handle AS originalAuthorHandle, a.original_author_name AS originalAuthorName, a.original_author_url AS originalAuthorUrl, a.submitted_by_handle AS submittedByHandle, a.submitted_by_name AS submittedByName",
       ""
@@ -44,7 +45,9 @@ function normalizeLegacySql(sql: string): string {
     )
     .replace(" JOIN users u ON u.id = a.owner_user_id", "")
     .replace(", u.display_name AS ownerDisplayName", "")
-    .replace(", owner_user_id AS ownerUserId", "");
+    .replace(", owner_user_id AS ownerUserId", "")
+    .replace(", readme_path, compatibility_json, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)", ", readme_path, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)")
+    .replace(", ?9, ?10)", ", ?9)");
 }
 
 class FakePreparedStatement<Row> {
@@ -134,6 +137,10 @@ class FakeDatabase {
           "INSERT INTO auth_identities (id, user_id, provider, provider_subject, created_at) VALUES (?1, ?2, ?3, ?4, ?5)" ||
         sql ===
           "UPDATE users SET handle = ?1, display_name = ?2, email = ?3, avatar_url = ?4, updated_at = ?5 WHERE id = ?6" ||
+        sql ===
+          "INSERT INTO agent_versions (id, agent_id, version, title, description, license, manifest_json, readme_path, compatibility_json, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)" ||
+        sql ===
+          "UPDATE agent_versions SET compatibility_json = ?1 WHERE id = ?2" ||
         sql ===
           "SELECT download_count AS downloadCount, pin_count AS pinCount, star_count AS starCount FROM agent_metrics WHERE agent_id = ?1 LIMIT 1" ||
         sql ===
@@ -334,6 +341,46 @@ test("D1AgentRepository groups detail rows into one agent detail response", asyn
       submittedByHandle: "raul",
       submittedByName: "Raul"
     },
+    compatibility: {
+      targets: [
+        {
+          targetId: "codex",
+          builtFor: true,
+          tested: true,
+          adapterAvailable: true
+        },
+        {
+          targetId: "claude-code",
+          builtFor: true,
+          tested: true,
+          adapterAvailable: true
+        },
+        {
+          targetId: "github-copilot",
+          builtFor: true,
+          tested: false,
+          adapterAvailable: true
+        },
+        {
+          targetId: "openclaw",
+          builtFor: false,
+          tested: false,
+          adapterAvailable: true
+        },
+        {
+          targetId: "crewai",
+          builtFor: false,
+          tested: false,
+          adapterAvailable: true
+        },
+        {
+          targetId: "langchain",
+          builtFor: false,
+          tested: false,
+          adapterAvailable: true
+        }
+      ]
+    },
     downloadCount: 0,
     pinCount: 0,
     starCount: 0,
@@ -434,6 +481,46 @@ test("D1AgentRepository returns one version detail row", async () => {
       originalAuthorUrl: null,
       submittedByHandle: "raul",
       submittedByName: "Raul"
+    },
+    compatibility: {
+      targets: [
+        {
+          targetId: "codex",
+          builtFor: true,
+          tested: true,
+          adapterAvailable: true
+        },
+        {
+          targetId: "claude-code",
+          builtFor: true,
+          tested: true,
+          adapterAvailable: true
+        },
+        {
+          targetId: "github-copilot",
+          builtFor: true,
+          tested: false,
+          adapterAvailable: true
+        },
+        {
+          targetId: "openclaw",
+          builtFor: false,
+          tested: false,
+          adapterAvailable: true
+        },
+        {
+          targetId: "crewai",
+          builtFor: false,
+          tested: false,
+          adapterAvailable: true
+        },
+        {
+          targetId: "langchain",
+          builtFor: false,
+          tested: false,
+          adapterAvailable: true
+        }
+      ]
     }
   });
 });

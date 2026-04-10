@@ -62,6 +62,26 @@ const agentDetail: AgentDetailResponse = {
     latestVersion: "0.4.0",
     lifecycleStatus: "active",
     ownerHandle: "raul",
+    provenance: {
+      sourceType: "manual",
+      sourceUrl: null,
+      sourceRepositoryUrl: "https://github.com/raul/code-reviewer",
+      originalAuthorHandle: "raul",
+      originalAuthorName: "Raul",
+      originalAuthorUrl: "https://raul.dev/code-reviewer",
+      submittedByHandle: "raul",
+      submittedByName: "Raul"
+    },
+    compatibility: {
+      targets: [
+        {
+          targetId: "codex",
+          builtFor: true,
+          tested: true,
+          adapterAvailable: true
+        }
+      ]
+    },
     downloadCount: 340,
     pinCount: 9,
     starCount: 14,
@@ -91,7 +111,27 @@ const versionDetail: AgentVersionDetailResponse = {
     manifestJson: "{\"kind\":\"Agent\"}",
     publishedAt: "2026-03-29T10:00:00.000Z",
     lifecycleStatus: "active",
-    ownerHandle: "raul"
+    ownerHandle: "raul",
+    provenance: {
+      sourceType: "manual",
+      sourceUrl: null,
+      sourceRepositoryUrl: "https://github.com/raul/code-reviewer",
+      originalAuthorHandle: "raul",
+      originalAuthorName: "Raul",
+      originalAuthorUrl: "https://raul.dev/code-reviewer",
+      submittedByHandle: "raul",
+      submittedByName: "Raul"
+    },
+    compatibility: {
+      targets: [
+        {
+          targetId: "codex",
+          builtFor: true,
+          tested: true,
+          adapterAvailable: true
+        }
+      ]
+    }
   }
 };
 

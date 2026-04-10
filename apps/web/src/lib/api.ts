@@ -11,6 +11,8 @@ import type {
   ImportPublishResponse,
   PublishRequest,
   PublishResponse,
+  AgentVersionCompatibilityUpdateRequest,
+  AgentVersionCompatibilityUpdateResponse,
   SessionResponse,
   AgentLifecycleUpdateResponse,
   AccountSummaryResponse
@@ -108,6 +110,14 @@ export function buildVersionBundleDownloadUrl(
   version: string
 ): string {
   return `${buildAgentVersionUrl(namespace, name, version)}/download.zip`;
+}
+
+export function buildVersionCompatibilityUrl(
+  namespace: string,
+  name: string,
+  version: string
+): string {
+  return buildAgentVersionUrl(namespace, name, version);
 }
 
 export function buildTrackedVersionBundleDownloadUrl(
@@ -283,6 +293,28 @@ export async function updateAccountProfile(
   }
 
   return (await response.json()) as AccountSummaryResponse;
+}
+
+export async function updateVersionCompatibility(
+  namespace: string,
+  name: string,
+  version: string,
+  payload: AgentVersionCompatibilityUpdateRequest
+): Promise<AgentVersionCompatibilityUpdateResponse> {
+  const response = await fetch(buildVersionCompatibilityUrl(namespace, name, version), {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const body = (await response.json()) as ApiErrorResponse;
+    throw new Error(body.error.message);
+  }
+
+  return (await response.json()) as AgentVersionCompatibilityUpdateResponse;
 }
 
 export async function recordAgentMetric(
