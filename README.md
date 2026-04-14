@@ -173,10 +173,31 @@ npm run dev:api:local
 npm run demo:populate:superpowers:github -- https://github.com/obra/superpowers main
 ```
 
-To run the same flow as a single local check:
+To run the full local end-to-end flow from one command:
 
 ```bash
 npm run smoke:local
+```
+
+This now orchestrates the real local E2E path:
+
+- resets local D1 state
+- starts the local Worker on `127.0.0.1:8787`
+- publishes the richer authenticated demo dataset with real artifacts
+- runs the sibling `agent-cli` smoke against `raul/code-reviewer@0.3.0`
+- shuts the Worker down again
+
+Requirements:
+
+- sibling checkout at `../agent-cli`, or set `AGENTLIB_CLI_DIR=/absolute/path/to/agent-cli`
+- local Go toolchain available in `$HOME/.local/go/bin`, or set `AGENTLIB_GO_BIN_DIR`
+
+Useful overrides:
+
+```bash
+AGENTLIB_CLI_DIR=/path/to/agent-cli npm run smoke:local
+AGENTLIB_SMOKE_REF=acme/support-triager@0.2.0 npm run smoke:local
+AGENTLIB_GO_BIN_DIR=/custom/go/bin npm run smoke:local
 ```
 
 After publishing, you can fetch artifact metadata and contents through:

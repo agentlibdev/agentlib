@@ -1,20 +1,44 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { spawn } from "node:child_process";
 
 import { waitForHealth } from "./_local-api.mjs";
-import { createSamplePublishRequest } from "./sample-publish-request.mjs";
+import {
+  createCliSmokeEnv,
+  resolveAgentCliDir,
+  resolveSmokeRef
+} from "./smoke-local-lib.mjs";
 
-const version = process.argv[2] ?? "0.3.2";
-const namespace = "raul";
-const name = "code-reviewer";
-const sampleRequest = createSamplePublishRequest(version);
-const expectedArtifacts = sampleRequest.artifacts
-  .map((artifact) => ({
-    path: artifact.path,
-    mediaType: artifact.mediaType,
-    sizeBytes: Buffer.from(artifact.content, "base64").byteLength
-  }))
-  .sort((left, right) => left.path.localeCompare(right.path));
+const projectRoot = process.cwd();
+const baseUrl = process.env.AGENTLIB_BASE_URL || "http://127.0.0.1:8787";
+const cliDir = resolveAgentCliDir(projectRoot, process.env);
+const smokeRef = resolveSmokeRef(process.env);
+const cliSmokeScript = path.join(cliDir, "scripts", "smoke-local.sh");
+
+function discoverGoBinDir() {
+  const candidates = [
+    process.env.AGENTLIB_GO_BIN_DIR,
+    process.env.HOME ? path.join(process.env.HOME, ".local", "go", "bin") : "",
+    ...(
+      fs.existsSync("/home")
+        ? fs.readdirSync("/home").map((entry) => path.join("/home", entry, ".local", "go", "bin"))
+        : []
+    )
+  ].filter(Boolean);
+
+  return candidates.find((candidate) => fs.existsSync(path.join(candidate, "go"))) || "";
+}
+
+const discoveredGoBinDir = discoverGoBinDir();
+const cliSmokeEnv = {
+  ...createCliSmokeEnv({
+    ...process.env,
+    ...(discoveredGoBinDir ? { AGENTLIB_GO_BIN_DIR: discoveredGoBinDir } : {})
+  }),
+  AGENTLIB_BASE_URL: baseUrl,
+  AGENTLIB_SMOKE_REF: smokeRef
+};
 
 function createCommandError(command, args, exitCode, stderr) {
   const details = stderr.trim();
@@ -26,7 +50,7 @@ function runCommand(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: options.cwd,
-      env: process.env,
+      env: options.env ?? process.env,
       stdio: ["ignore", "pipe", "pipe"]
     });
 
@@ -81,14 +105,26 @@ async function stopServer(child) {
   });
 }
 
+function ensureCliPrerequisites() {
+  if (!fs.existsSync(cliDir)) {
+    throw new Error(`agent-cli repo not found at ${cliDir}. Set AGENTLIB_CLI_DIR if needed.`);
+  }
+
+  if (!fs.existsSync(cliSmokeScript)) {
+    throw new Error(`CLI smoke script not found at ${cliSmokeScript}.`);
+  }
+}
+
 let devServer = null;
 const devLogs = [];
 
 try {
-  await runCommand("npm", ["run", "db:reset:local"], { cwd: process.cwd() });
+  ensureCliPrerequisites();
+
+  await runCommand("npm", ["run", "db:reset:local"], { cwd: projectRoot });
 
   devServer = spawn("npm", ["run", "dev:api:local"], {
-    cwd: process.cwd(),
+    cwd: projectRoot,
     detached: true,
     env: process.env,
     stdio: ["ignore", "pipe", "pipe"]
@@ -102,49 +138,35 @@ try {
     devLogs.push(chunk.toString());
   });
 
-  await waitForHealth();
+  await waitForHealth(baseUrl);
 
-  const publish = await runCommand(
-    "node",
-    ["scripts/publish-sample-local.mjs", version],
-    { cwd: process.cwd() }
-  );
-  const publishBody = JSON.parse(publish.stdout);
-
-  assert.deepEqual(publishBody, {
-    agent: {
-      namespace,
-      name,
-      version
+  const populate = await runCommand("node", ["scripts/populate-demo-local.mjs"], {
+    cwd: projectRoot,
+    env: {
+      ...process.env,
+      AGENTLIB_BASE_URL: baseUrl
     }
   });
+  const populateBody = JSON.parse(populate.stdout);
+  assert.equal(populateBody.ok, true);
 
-  const listed = await runCommand(
-    "node",
-    ["scripts/list-artifacts-local.mjs", namespace, name, version],
-    { cwd: process.cwd() }
-  );
-  const listBody = JSON.parse(listed.stdout);
-  listBody.items.sort((left, right) => left.path.localeCompare(right.path));
-
-  assert.deepEqual(listBody, {
-    items: expectedArtifacts
+  const cliSmoke = await runCommand("bash", ["./scripts/smoke-local.sh"], {
+    cwd: cliDir,
+    env: cliSmokeEnv
   });
 
-  const download = await runCommand(
-    "node",
-    ["scripts/download-artifact-local.mjs", namespace, name, version, "README.md"],
-    { cwd: process.cwd() }
-  );
-
-  assert.equal(download.stdout.trim(), "# Code Reviewer");
+  if (!cliSmoke.stdout.includes("smoke ok")) {
+    throw new Error(`CLI smoke did not finish successfully.\n${cliSmoke.stdout}`);
+  }
 
   console.log(
     JSON.stringify(
       {
         ok: true,
-        version,
-        artifacts: listBody.items.map((artifact) => artifact.path)
+        baseUrl,
+        smokeRef,
+        cliDir,
+        populatedAgents: populateBody.agents.length
       },
       null,
       2

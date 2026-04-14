@@ -71,14 +71,25 @@ npm run build:web
 npm run smoke:local
 ```
 
-This orchestrates the local flow end-to-end:
+This orchestrates the real local flow end-to-end:
 
 - resets local D1 state
 - starts Wrangler local dev
-- publishes a sample package
-- lists its artifacts
-- downloads one artifact
-- validates expected output
+- populates authenticated demo agents with real artifacts
+- runs the sibling `agent-cli` smoke against a real published package
+- validates install, activation, status, deactivate, and remove
+
+Requirements:
+
+- sibling checkout at `../agent-cli`, or `AGENTLIB_CLI_DIR=/absolute/path/to/agent-cli`
+- Go toolchain available at `$HOME/.local/go/bin`, or `AGENTLIB_GO_BIN_DIR=/custom/go/bin`
+
+Useful overrides:
+
+```bash
+AGENTLIB_SMOKE_REF=acme/support-triager@0.2.0 npm run smoke:local
+AGENTLIB_CLI_DIR=/path/to/agent-cli npm run smoke:local
+```
 
 ## Web app local development
 
