@@ -249,7 +249,7 @@ class FakeGithubClient implements GithubClient {
 test("D1AgentRepository maps list query rows into API list records", async () => {
   const repository = new D1AgentRepository(
     new FakeDatabase({
-      "SELECT namespace, name, latest_version AS latestVersion, latest_title AS title, latest_description AS description FROM agent_list_view ORDER BY namespace, name LIMIT 50": {
+      "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.title, av.description FROM agents a JOIN agent_versions av ON av.agent_id = a.id AND av.version = a.latest_version ORDER BY a.namespace, a.name LIMIT 50": {
         results: [
           {
             namespace: "raul",
@@ -258,7 +258,9 @@ test("D1AgentRepository maps list query rows into API list records", async () =>
             title: "Code Reviewer",
             description: "Reviews pull requests for correctness and maintainability.",
             lifecycleStatus: "active",
-            ownerHandle: "raul"
+            ownerHandle: "raul",
+            compatibilityJson:
+              '{"targets":[{"targetId":"codex","builtFor":true,"tested":true,"adapterAvailable":true}]}'
           }
         ]
       },
@@ -282,6 +284,16 @@ test("D1AgentRepository maps list query rows into API list records", async () =>
         description: "Reviews pull requests for correctness and maintainability.",
         lifecycleStatus: "active",
         ownerHandle: "raul",
+        compatibility: {
+          targets: [
+            {
+              targetId: "codex",
+              builtFor: true,
+              tested: true,
+              adapterAvailable: true
+            }
+          ]
+        },
         downloadCount: 0,
         pinCount: 0,
         starCount: 0

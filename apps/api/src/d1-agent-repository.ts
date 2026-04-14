@@ -33,7 +33,7 @@ import type { GithubClient } from "@providers/github-client.js";
 import type { ArtifactStorage } from "@storage/artifact-storage.js";
 
 const LIST_AGENTS_SQL =
-  "SELECT namespace, name, package_kind AS packageKind, latest_version AS latestVersion, latest_title AS title, latest_description AS description, lifecycle_status AS lifecycleStatus, owner_handle AS ownerHandle FROM agent_list_view ORDER BY namespace, name LIMIT 50";
+  "SELECT a.namespace, a.name, a.package_kind AS packageKind, a.latest_version AS latestVersion, av.title, av.description, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle, av.compatibility_json AS compatibilityJson FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id AND av.version = a.latest_version ORDER BY a.namespace, a.name LIMIT 50";
 
 const GET_AGENT_DETAIL_SQL =
   "SELECT a.namespace, a.name, a.package_kind AS packageKind, a.latest_version AS latestVersion, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle, a.namespace_type AS namespaceType, a.verification_status AS verificationStatus, a.canonical_namespace AS canonicalNamespace, a.canonical_name AS canonicalName, a.claimed_by_namespace AS claimedByNamespace, a.source_type AS sourceType, a.source_url AS sourceUrl, a.source_repository_url AS sourceRepositoryUrl, a.original_author_handle AS originalAuthorHandle, a.original_author_name AS originalAuthorName, a.original_author_url AS originalAuthorUrl, a.submitted_by_handle AS submittedByHandle, a.submitted_by_name AS submittedByName, u.display_name AS ownerDisplayName, av.version, av.title, av.description, av.published_at AS publishedAt, av.compatibility_json AS compatibilityJson FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id WHERE a.namespace = ?1 AND a.name = ?2 ORDER BY av.published_at DESC";
@@ -122,7 +122,7 @@ const LIST_ACCOUNT_IDENTITIES_SQL =
   "SELECT ai.provider, u.handle, u.email FROM auth_identities ai JOIN users u ON u.id = ai.user_id WHERE ai.user_id = ?1 ORDER BY ai.provider";
 
 const LIST_OWNED_AGENTS_SQL =
-  "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.title, av.description, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id AND av.version = a.latest_version WHERE a.owner_user_id = ?1 ORDER BY a.namespace, a.name LIMIT 100";
+  "SELECT a.namespace, a.name, a.package_kind AS packageKind, a.latest_version AS latestVersion, av.title, av.description, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle, av.compatibility_json AS compatibilityJson FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id AND av.version = a.latest_version WHERE a.owner_user_id = ?1 ORDER BY a.namespace, a.name LIMIT 100";
 
 const INSERT_AGENT_METRICS_SQL =
   "INSERT INTO agent_metrics (agent_id, download_count, pin_count, star_count, updated_at) VALUES (?1, 0, 0, 0, ?2)";
@@ -170,9 +170,10 @@ const GET_REGISTRY_TOTALS_SQL =
   "SELECT COUNT(*) AS totalAgents, COALESCE(SUM(download_count), 0) AS totalDownloads, COALESCE(SUM(pin_count), 0) AS totalPins, COALESCE(SUM(star_count), 0) AS totalStars FROM agents a LEFT JOIN agent_metrics m ON m.agent_id = a.id";
 
 const LIST_TOP_AGENTS_SQL =
-  "SELECT a.namespace, a.name, a.latest_version AS latestVersion, av.title, av.description, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle, COALESCE(m.download_count, 0) AS downloadCount, COALESCE(m.pin_count, 0) AS pinCount, COALESCE(m.star_count, 0) AS starCount FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id AND av.version = a.latest_version LEFT JOIN agent_metrics m ON m.agent_id = a.id ORDER BY (COALESCE(m.download_count, 0) * 3) + (COALESCE(m.star_count, 0) * 2) + COALESCE(m.pin_count, 0) DESC, a.updated_at DESC LIMIT 6";
-
-type AgentListRow = AgentListItem;
+  "SELECT a.namespace, a.name, a.package_kind AS packageKind, a.latest_version AS latestVersion, av.title, av.description, a.lifecycle_status AS lifecycleStatus, u.handle AS ownerHandle, av.compatibility_json AS compatibilityJson, COALESCE(m.download_count, 0) AS downloadCount, COALESCE(m.pin_count, 0) AS pinCount, COALESCE(m.star_count, 0) AS starCount FROM agents a JOIN users u ON u.id = a.owner_user_id JOIN agent_versions av ON av.agent_id = a.id AND av.version = a.latest_version LEFT JOIN agent_metrics m ON m.agent_id = a.id ORDER BY (COALESCE(m.download_count, 0) * 3) + (COALESCE(m.star_count, 0) * 2) + COALESCE(m.pin_count, 0) DESC, a.updated_at DESC LIMIT 6";
+type AgentListRow = Omit<AgentListItem, "compatibility"> & {
+  compatibilityJson?: string | null;
+};
 
 type AgentDetailRow = {
   namespace: string;
@@ -503,7 +504,21 @@ export class D1AgentRepository implements AgentRepository {
           : { downloadCount: 0, pinCount: 0, starCount: 0 };
 
         return {
-          ...item,
+          namespace: item.namespace,
+          name: item.name,
+          packageKind: item.packageKind ?? "agent",
+          latestVersion: item.latestVersion,
+          title: item.title,
+          description: item.description,
+          lifecycleStatus: item.lifecycleStatus,
+          ownerHandle: item.ownerHandle,
+          compatibility: parseCompatibilityJson(
+            item.compatibilityJson,
+            createDefaultCompatibility({
+              namespace: item.namespace,
+              name: item.name
+            })
+          ),
           ...metrics
         };
       })
@@ -517,7 +532,28 @@ export class D1AgentRepository implements AgentRepository {
 
   async getRegistryHighlights(): Promise<RegistryHighlights> {
     const totalsResult = await this.db.prepare(GET_REGISTRY_TOTALS_SQL).all<RegistryTotalsRow>();
-    const topAgentsResult = await this.db.prepare(LIST_TOP_AGENTS_SQL).all<AgentListItem>();
+    const topAgentsResult = await this.db.prepare(LIST_TOP_AGENTS_SQL).all<AgentListRow>();
+
+    const topAgents = topAgentsResult.results.map((item) => ({
+      namespace: item.namespace,
+      name: item.name,
+      packageKind: item.packageKind ?? "agent",
+      latestVersion: item.latestVersion,
+      title: item.title,
+      description: item.description,
+      lifecycleStatus: item.lifecycleStatus,
+      ownerHandle: item.ownerHandle,
+      compatibility: parseCompatibilityJson(
+        item.compatibilityJson,
+        createDefaultCompatibility({
+          namespace: item.namespace,
+          name: item.name
+        })
+      ),
+      downloadCount: item.downloadCount,
+      pinCount: item.pinCount,
+      starCount: item.starCount
+    }));
 
     return {
       stats: totalsResult.results[0] ?? {
@@ -526,7 +562,7 @@ export class D1AgentRepository implements AgentRepository {
         totalPins: 0,
         totalStars: 0
       },
-      topAgents: topAgentsResult.results
+      topAgents
     };
   }
 
@@ -554,7 +590,21 @@ export class D1AgentRepository implements AgentRepository {
           : { downloadCount: 0, pinCount: 0, starCount: 0 };
 
         return {
-          ...item,
+          namespace: item.namespace,
+          name: item.name,
+          packageKind: item.packageKind ?? "agent",
+          latestVersion: item.latestVersion,
+          title: item.title,
+          description: item.description,
+          lifecycleStatus: item.lifecycleStatus,
+          ownerHandle: item.ownerHandle,
+          compatibility: parseCompatibilityJson(
+            item.compatibilityJson,
+            createDefaultCompatibility({
+              namespace: item.namespace,
+              name: item.name
+            })
+          ),
           ...metrics
         };
       })

@@ -103,6 +103,10 @@ export class InMemoryAgentRepository implements AgentRepository {
         description: agent.versions[0].description,
         lifecycleStatus: agent.lifecycleStatus,
         ownerHandle: agent.ownerHandle,
+        compatibility: cloneCompatibility(
+          this.versionCompatibility.get(`${agent.namespace}/${agent.name}/${agent.latestVersion}`) ??
+            agent.compatibility
+        ),
         ...(this.metrics.get(`${agent.namespace}/${agent.name}`) ?? {
           downloadCount: 0,
           pinCount: 0,

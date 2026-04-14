@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Expose stable compatibility metadata from the registry API and render `Built for`, `Tested with`, and `Adapter available` badges on agent and version detail pages.
+**Goal:** Expose stable compatibility metadata from the registry API and render `Built for`, `Tested with`, and `Adapter available` badges on agent, version, and list-based summary surfaces.
 
 **Architecture:** Compatibility is version-first and represented as a `targets[]` collection where each target carries three explicit booleans. Agent detail exposes the same shape as a latest-version snapshot. This first slice keeps persistence simple by using server-side defaults for demo agents and empty compatibility for everything else.
 
@@ -48,7 +48,7 @@ export type AgentCompatibility = {
 };
 ```
 
-Add `compatibility` to `AgentDetail` and `AgentVersionDetail`.
+Add `compatibility` to `AgentListItem`, `AgentDetail`, and `AgentVersionDetail`.
 
 ### Task 2: Add server-side compatibility defaults
 
@@ -68,6 +68,7 @@ Keep this thin and explicit. Do not add persistence in this slice.
 **Step 2: Wire repository responses**
 
 Both repositories should return a `compatibility` object on:
+- list items
 - agent detail
 - version detail
 
@@ -151,5 +152,6 @@ Expected:
 
 Record that:
 - the API contract is now `compatibility.targets[]`
+- list/search, account summary, and registry highlights reuse the same latest-version compatibility snapshot
 - the current slice uses server-side defaults for demo data
 - publish-time editing and persistence remain follow-up work

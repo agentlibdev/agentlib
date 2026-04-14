@@ -26,6 +26,9 @@ const agents: AgentListItem[] = [
     description: "Reviews pull requests for correctness and maintainability.",
     lifecycleStatus: "active",
     ownerHandle: "raul",
+    compatibility: {
+      targets: []
+    },
     downloadCount: 0,
     pinCount: 0,
     starCount: 0
@@ -39,6 +42,9 @@ const agents: AgentListItem[] = [
     description: "Produces concise contributor-facing documentation.",
     lifecycleStatus: "active",
     ownerHandle: "raul",
+    compatibility: {
+      targets: []
+    },
     downloadCount: 0,
     pinCount: 0,
     starCount: 0

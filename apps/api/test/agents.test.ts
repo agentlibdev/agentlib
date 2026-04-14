@@ -79,6 +79,16 @@ test("GET /api/v1/agents returns a paginated agent list", async () => {
           description: "Reviews pull requests for correctness and maintainability.",
           lifecycleStatus: "active",
           ownerHandle: "raul",
+          compatibility: {
+            targets: [
+              {
+                targetId: "codex",
+                builtFor: true,
+                tested: true,
+                adapterAvailable: true
+              }
+            ]
+          },
           downloadCount: 0,
           pinCount: 0,
           starCount: 0
@@ -110,6 +120,16 @@ test("GET /api/v1/agents returns a paginated agent list", async () => {
         description: "Reviews pull requests for correctness and maintainability.",
         lifecycleStatus: "active",
         ownerHandle: "raul",
+        compatibility: {
+          targets: [
+            {
+              targetId: "codex",
+              builtFor: true,
+              tested: true,
+              adapterAvailable: true
+            }
+          ]
+        },
         downloadCount: 0,
         pinCount: 0,
         starCount: 0
@@ -1067,6 +1087,16 @@ test("GET /api/v1/account returns linked identities and owned agents for the ses
             description: "Reviews pull requests for correctness and maintainability.",
             lifecycleStatus: "active",
             ownerHandle: "raul",
+            compatibility: {
+              targets: [
+                {
+                  targetId: "codex",
+                  builtFor: true,
+                  tested: true,
+                  adapterAvailable: true
+                }
+              ]
+            },
             downloadCount: 28,
             pinCount: 4,
             starCount: 9
@@ -1087,6 +1117,16 @@ test("GET /api/v1/account returns linked identities and owned agents for the ses
           description: "Reviews pull requests for correctness and maintainability.",
           lifecycleStatus: "active",
           ownerHandle: "raul",
+          compatibility: {
+            targets: [
+              {
+                targetId: "codex",
+                builtFor: true,
+                tested: true,
+                adapterAvailable: true
+              }
+            ]
+          },
           downloadCount: 28,
           pinCount: 4,
           starCount: 9
@@ -1125,6 +1165,16 @@ test("GET /api/v1/account returns linked identities and owned agents for the ses
           description: "Reviews pull requests for correctness and maintainability.",
           lifecycleStatus: "active",
           ownerHandle: "raul",
+          compatibility: {
+            targets: [
+              {
+                targetId: "codex",
+                builtFor: true,
+                tested: true,
+                adapterAvailable: true
+              }
+            ]
+          },
           downloadCount: 28,
           pinCount: 4,
           starCount: 9
@@ -1145,6 +1195,16 @@ test("GET /api/v1/account returns linked identities and owned agents for the ses
         description: "Reviews pull requests for correctness and maintainability.",
         lifecycleStatus: "active",
         ownerHandle: "raul",
+        compatibility: {
+          targets: [
+            {
+              targetId: "codex",
+              builtFor: true,
+              tested: true,
+              adapterAvailable: true
+            }
+          ]
+        },
         downloadCount: 28,
         pinCount: 4,
         starCount: 9

@@ -7,6 +7,7 @@ export type AgentListItem = {
   description: string;
   lifecycleStatus: "active" | "deprecated" | "unmaintained";
   ownerHandle: string;
+  compatibility: AgentCompatibility;
   downloadCount: number;
   pinCount: number;
   starCount: number;

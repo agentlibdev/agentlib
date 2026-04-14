@@ -28,6 +28,8 @@ Extend:
 - version update input/result types
 - repository method for updating version compatibility
 
+Keep read-side parity intact by ensuring list/search and summary surfaces also expose the latest-version compatibility snapshot, so the web and CLI can rely on one compatibility contract.
+
 ### Task 2: Persist compatibility in repositories
 
 **Files:**
