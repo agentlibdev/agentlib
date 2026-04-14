@@ -1,6 +1,5 @@
 import { startTransition, useEffect, useEffectEvent, useState } from "react";
 import {
-  Bot,
   Compass,
   LogOut,
   Moon,
@@ -65,6 +64,7 @@ import { ManualPublishPage } from "./routes/manual-publish-page.js";
 import { VersionPage } from "./routes/version-page.js";
 import { ArtifactPage } from "./routes/artifact-page.js";
 import { buildBreadcrumbs, rankCreators } from "./lib/view-models.js";
+import { BrandMark } from "./components/brand-mark.js";
 
 type LoadState =
   | { status: "loading" }
@@ -522,7 +522,7 @@ export function App() {
             >
               <div className="relative">
                 <div className="absolute inset-0 rounded-full bg-cyan-500 blur-lg opacity-35 dark:opacity-50" />
-                <Bot className="relative h-8 w-8 text-cyan-500 dark:text-cyan-400" />
+                <BrandMark className="relative h-10 w-10 text-cyan-500 dark:text-cyan-400" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold">

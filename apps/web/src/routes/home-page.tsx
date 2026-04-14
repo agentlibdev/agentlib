@@ -1,6 +1,5 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import {
-  Bot,
   Download,
   Filter,
   Pin,
@@ -19,6 +18,7 @@ import {
 } from "../lib/router.js";
 import type { AgentListItem, RegistryHighlightsResponse, SessionResponse } from "../lib/types.js";
 import { filterAgents, rankCreators } from "../lib/view-models.js";
+import { BrandMark } from "../components/brand-mark.js";
 
 type HomePageProps = {
   agents: AgentListItem[];
@@ -245,7 +245,7 @@ export function HomePage({
           {filteredAgents.length === 0 ? (
             <div className="app-panel p-16 text-center">
               <div className="text-slate-400 dark:text-gray-500">
-                <Bot className="mx-auto mb-4 h-16 w-16 opacity-50" />
+                <BrandMark className="mx-auto mb-4 h-16 w-16 opacity-50" />
                 <p className="text-lg">No agents found</p>
                 <p className="text-sm">Try adjusting your search or filters</p>
               </div>
