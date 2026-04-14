@@ -26,6 +26,9 @@ type StatementResult<Row> = {
 
 function normalizeLegacySql(sql: string): string {
   return sql
+    .replace(", a.package_kind AS packageKind", "")
+    .replace("package_kind AS packageKind, ", "")
+    .replace(", package_kind AS packageKind", "")
     .replace(", av.compatibility_json AS compatibilityJson", "")
     .replace(
       ", a.namespace_type AS namespaceType, a.verification_status AS verificationStatus, a.canonical_namespace AS canonicalNamespace, a.canonical_name AS canonicalName, a.claimed_by_namespace AS claimedByNamespace, a.source_type AS sourceType, a.source_url AS sourceUrl, a.source_repository_url AS sourceRepositoryUrl, a.original_author_handle AS originalAuthorHandle, a.original_author_name AS originalAuthorName, a.original_author_url AS originalAuthorUrl, a.submitted_by_handle AS submittedByHandle, a.submitted_by_name AS submittedByName",
@@ -46,6 +49,10 @@ function normalizeLegacySql(sql: string): string {
     .replace(" JOIN users u ON u.id = a.owner_user_id", "")
     .replace(", u.display_name AS ownerDisplayName", "")
     .replace(", owner_user_id AS ownerUserId", "")
+    .replace(
+      "INSERT INTO agents (id, namespace, name, package_kind, owner_user_id, lifecycle_status, latest_version, namespace_type, verification_status, canonical_namespace, canonical_name, claimed_by_namespace, source_type, source_url, source_repository_url, original_author_handle, original_author_name, original_author_url, submitted_by_handle, submitted_by_name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
+      "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, namespace_type, verification_status, canonical_namespace, canonical_name, claimed_by_namespace, source_type, source_url, source_repository_url, original_author_handle, original_author_name, original_author_url, submitted_by_handle, submitted_by_name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)"
+    )
     .replace(", readme_path, compatibility_json, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)", ", readme_path, published_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)")
     .replace(", ?9, ?10)", ", ?9)");
 }
@@ -77,6 +84,7 @@ class FakePreparedStatement<Row> {
           this.sql.includes("agent_list_view") ||
           this.sql.includes("JOIN users u ON u.id = a.owner_user_id")
         ) {
+          maybeRow.packageKind ??= "agent";
           maybeRow.lifecycleStatus ??= "active";
           maybeRow.ownerHandle ??= "raul";
         }
@@ -143,6 +151,8 @@ class FakeDatabase {
           "UPDATE agent_versions SET compatibility_json = ?1 WHERE id = ?2" ||
         sql ===
           "SELECT download_count AS downloadCount, pin_count AS pinCount, star_count AS starCount FROM agent_metrics WHERE agent_id = ?1 LIMIT 1" ||
+        sql ===
+          "INSERT INTO agents (id, namespace, name, package_kind, owner_user_id, lifecycle_status, latest_version, namespace_type, verification_status, canonical_namespace, canonical_name, claimed_by_namespace, source_type, source_url, source_repository_url, original_author_handle, original_author_name, original_author_url, submitted_by_handle, submitted_by_name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)" ||
         sql ===
           "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, namespace_type, verification_status, canonical_namespace, canonical_name, claimed_by_namespace, source_type, source_url, source_repository_url, original_author_handle, original_author_name, original_author_url, submitted_by_handle, submitted_by_name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)" ||
         sql ===
@@ -266,6 +276,7 @@ test("D1AgentRepository maps list query rows into API list records", async () =>
       {
         namespace: "raul",
         name: "code-reviewer",
+        packageKind: "agent",
         latestVersion: "0.1.0",
         title: "Code Reviewer",
         description: "Reviews pull requests for correctness and maintainability.",
@@ -321,6 +332,7 @@ test("D1AgentRepository groups detail rows into one agent detail response", asyn
   assert.deepEqual(result, {
     namespace: "raul",
     name: "code-reviewer",
+    packageKind: "agent",
     latestVersion: "0.2.0",
     lifecycleStatus: "active",
     ownerHandle: "raul",
@@ -457,6 +469,7 @@ test("D1AgentRepository returns one version detail row", async () => {
   assert.deepEqual(result, {
     namespace: "raul",
     name: "code-reviewer",
+    packageKind: "agent",
     version: "0.2.0",
     title: "Code Reviewer",
     description: "Reviews pull requests for correctness and maintainability.",
@@ -620,12 +633,13 @@ test("D1AgentRepository publishes a new version for a new agent", async () => {
   assert.ok(
     database.runs.some(
       (entry) =>
-        entry.sql ===
+        normalizeLegacySql(entry.sql) ===
           "INSERT INTO agents (id, namespace, name, owner_user_id, lifecycle_status, latest_version, namespace_type, verification_status, canonical_namespace, canonical_name, claimed_by_namespace, source_type, source_url, source_repository_url, original_author_handle, original_author_name, original_author_url, submitted_by_handle, submitted_by_name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)" &&
-        entry.args[3] === "user_github_123456" &&
-        entry.args[4] === "active" &&
-        entry.args[6] === "official" &&
-        entry.args[7] === "official"
+        entry.args[3] === "agent" &&
+        entry.args[4] === "user_github_123456" &&
+        entry.args[5] === "active" &&
+        entry.args[7] === "official" &&
+        entry.args[8] === "official"
     )
   );
 });

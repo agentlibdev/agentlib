@@ -20,6 +20,7 @@ const agents: AgentListItem[] = [
   {
     namespace: "raul",
     name: "code-reviewer",
+    packageKind: "agent",
     latestVersion: "0.4.0",
     title: "Code Reviewer",
     description: "Reviews pull requests for correctness and maintainability.",
@@ -32,6 +33,7 @@ const agents: AgentListItem[] = [
   {
     namespace: "raul",
     name: "docs-writer",
+    packageKind: "agent",
     latestVersion: "0.2.0",
     title: "Docs Writer",
     description: "Produces concise contributor-facing documentation.",
@@ -59,6 +61,7 @@ const agentDetail: AgentDetailResponse = {
   agent: {
     namespace: "raul",
     name: "code-reviewer",
+    packageKind: "agent",
     latestVersion: "0.4.0",
     lifecycleStatus: "active",
     ownerHandle: "raul",
@@ -104,6 +107,7 @@ const versionDetail: AgentVersionDetailResponse = {
   version: {
     namespace: "raul",
     name: "code-reviewer",
+    packageKind: "agent",
     version: "0.4.0",
     title: "Code Reviewer",
     description: "Reviews pull requests for correctness and maintainability.",

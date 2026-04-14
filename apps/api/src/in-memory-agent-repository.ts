@@ -33,6 +33,7 @@ import { parseGithubRepositoryUrl } from "@providers/github-import.js";
 const seedAgent: AgentDetail = {
   namespace: "raul",
   name: "code-reviewer",
+  packageKind: "agent",
   latestVersion: "0.1.0",
   lifecycleStatus: "active",
   ownerHandle: "raul",
@@ -96,6 +97,7 @@ export class InMemoryAgentRepository implements AgentRepository {
       items: entries.map((agent) => ({
         namespace: agent.namespace,
         name: agent.name,
+        packageKind: agent.packageKind,
         latestVersion: agent.latestVersion,
         title: agent.versions[0].title,
         description: agent.versions[0].description,
@@ -242,6 +244,7 @@ export class InMemoryAgentRepository implements AgentRepository {
     return {
       namespace: detail.namespace,
       name: detail.name,
+      packageKind: detail.packageKind,
       version: versionRecord.version,
       title: versionRecord.title,
       description: versionRecord.description,
@@ -337,6 +340,7 @@ export class InMemoryAgentRepository implements AgentRepository {
       : {
           namespace,
           name,
+          packageKind: payload.packageKind ?? "agent",
           latestVersion: version,
           lifecycleStatus: "active",
           ownerHandle: actor.handle,

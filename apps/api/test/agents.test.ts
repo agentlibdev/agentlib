@@ -73,6 +73,7 @@ test("GET /api/v1/agents returns a paginated agent list", async () => {
         {
           namespace: "raul",
           name: "code-reviewer",
+          packageKind: "agent",
           latestVersion: "0.1.0",
           title: "Code Reviewer",
           description: "Reviews pull requests for correctness and maintainability.",
@@ -103,6 +104,7 @@ test("GET /api/v1/agents returns a paginated agent list", async () => {
       {
         namespace: "raul",
         name: "code-reviewer",
+        packageKind: "agent",
         latestVersion: "0.1.0",
         title: "Code Reviewer",
         description: "Reviews pull requests for correctness and maintainability.",
@@ -158,6 +160,7 @@ test("PATCH /api/v1/agents/:namespace/:name/versions/:version updates version co
       return {
         namespace: "raul",
         name: "code-reviewer",
+        packageKind: "agent",
         version: "0.3.0",
         title: "Code Reviewer",
         description: "Reviews pull requests for correctness and maintainability.",
@@ -218,6 +221,7 @@ test("PATCH /api/v1/agents/:namespace/:name/versions/:version updates version co
     version: {
       namespace: "raul",
       name: "code-reviewer",
+      packageKind: "agent",
       version: "0.3.0",
       title: "Code Reviewer",
       description: "Reviews pull requests for correctness and maintainability.",
@@ -279,6 +283,7 @@ test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
     getAgentDetail: async (_namespace, _name, actor) => ({
       namespace: "raul",
       name: "code-reviewer",
+      packageKind: "agent",
       latestVersion: "0.1.0",
       lifecycleStatus: "active",
       ownerHandle: "raul",
@@ -342,6 +347,7 @@ test("GET /api/v1/agents/:namespace/:name returns agent detail", async () => {
     agent: {
       namespace: "raul",
       name: "code-reviewer",
+      packageKind: "agent",
       latestVersion: "0.1.0",
       lifecycleStatus: "active",
       ownerHandle: "raul",
@@ -413,6 +419,7 @@ test("GET /api/v1/agents/:namespace/:name includes viewer social state for the a
     getAgentDetail: async (_namespace, _name, actor) => ({
       namespace: "raul",
       name: "code-reviewer",
+      packageKind: "agent",
       latestVersion: "0.1.0",
       lifecycleStatus: "active",
       ownerHandle: "raul",
@@ -465,6 +472,7 @@ test("GET /api/v1/agents/:namespace/:name includes viewer social state for the a
     agent: {
       namespace: "raul",
       name: "code-reviewer",
+      packageKind: "agent",
       latestVersion: "0.1.0",
       lifecycleStatus: "active",
       ownerHandle: "raul",
@@ -604,6 +612,7 @@ test("GET /api/v1/agents/:namespace/:name/versions/:version returns one version 
     getAgentVersionDetail: async () => ({
       namespace: "raul",
       name: "code-reviewer",
+      packageKind: "agent",
       version: "0.2.0",
       title: "Code Reviewer",
       description: "Reviews pull requests for correctness and maintainability.",
@@ -657,6 +666,7 @@ test("GET /api/v1/agents/:namespace/:name/versions/:version returns one version 
     version: {
       namespace: "raul",
       name: "code-reviewer",
+      packageKind: "agent",
       version: "0.2.0",
       title: "Code Reviewer",
       description: "Reviews pull requests for correctness and maintainability.",
@@ -1051,6 +1061,7 @@ test("GET /api/v1/account returns linked identities and owned agents for the ses
           {
             namespace: "raul",
             name: "code-reviewer",
+            packageKind: "agent",
             latestVersion: "0.4.0",
             title: "Code Reviewer",
             description: "Reviews pull requests for correctness and maintainability.",
@@ -1070,6 +1081,7 @@ test("GET /api/v1/account returns linked identities and owned agents for the ses
         topAgent: {
           namespace: "raul",
           name: "code-reviewer",
+          packageKind: "agent",
           latestVersion: "0.4.0",
           title: "Code Reviewer",
           description: "Reviews pull requests for correctness and maintainability.",
@@ -1107,6 +1119,7 @@ test("GET /api/v1/account returns linked identities and owned agents for the ses
         {
           namespace: "raul",
           name: "code-reviewer",
+          packageKind: "agent",
           latestVersion: "0.4.0",
           title: "Code Reviewer",
           description: "Reviews pull requests for correctness and maintainability.",
@@ -1126,6 +1139,7 @@ test("GET /api/v1/account returns linked identities and owned agents for the ses
       topAgent: {
         namespace: "raul",
         name: "code-reviewer",
+        packageKind: "agent",
         latestVersion: "0.4.0",
         title: "Code Reviewer",
         description: "Reviews pull requests for correctness and maintainability.",

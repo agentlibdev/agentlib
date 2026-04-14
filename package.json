@@ -34,6 +34,8 @@
     "publish:dir:local": "tsx scripts/publish-example-local.ts",
     "publish:example:local": "npm run publish:dir:local --",
     "demo:populate:local": "node scripts/populate-demo-local.mjs",
+    "demo:populate:superpowers:local": "tsx scripts/populate-superpowers-local.ts",
+    "demo:populate:superpowers:github": "tsx scripts/populate-superpowers-github.ts",
     "populate:demo:local": "npm run demo:populate:local",
     "import:github:local": "node scripts/import-github-local.mjs",
     "list:artifacts:local": "node scripts/list-artifacts-local.mjs",

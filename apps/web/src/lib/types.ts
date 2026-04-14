@@ -1,6 +1,7 @@
 export type AgentListItem = {
   namespace: string;
   name: string;
+  packageKind: AgentPackageKind;
   latestVersion: string;
   title: string;
   description: string;
@@ -24,6 +25,8 @@ export type AgentVersionRecord = {
   description: string;
   publishedAt: string;
 };
+
+export type AgentPackageKind = "agent" | "agent-skill" | "repository-snapshot";
 
 export type AgentTargetCompatibility = {
   targetId: string;
@@ -51,6 +54,7 @@ export type AgentDetailResponse = {
   agent: {
     namespace: string;
     name: string;
+    packageKind: AgentPackageKind;
     latestVersion: string;
     lifecycleStatus: "active" | "deprecated" | "unmaintained";
     ownerHandle: string;
@@ -71,6 +75,7 @@ export type AgentVersionDetailResponse = {
   version: {
     namespace: string;
     name: string;
+    packageKind: AgentPackageKind;
     version: string;
     title: string;
     description: string;
@@ -204,6 +209,7 @@ export type PublishArtifactInput = {
 };
 
 export type PublishRequest = {
+  packageKind?: AgentPackageKind;
   manifest: {
     apiVersion: "agentlib.dev/v1alpha1";
     kind: "Agent";
@@ -220,7 +226,7 @@ export type PublishRequest = {
       inputs: [];
       outputs: [];
       tools: [];
-    };
+    } | Record<string, unknown>;
   };
   compatibility?: AgentCompatibility;
   readme: string;

@@ -1,6 +1,7 @@
 export type AgentListItem = {
   namespace: string;
   name: string;
+  packageKind: AgentPackageKind;
   latestVersion: string;
   title: string;
   description: string;
@@ -12,6 +13,8 @@ export type AgentListItem = {
 };
 
 export type AgentLifecycleStatus = "active" | "deprecated" | "unmaintained";
+
+export type AgentPackageKind = "agent" | "agent-skill" | "repository-snapshot";
 
 export type AgentNamespaceType = "official" | "community" | "mirror";
 
@@ -135,6 +138,7 @@ export type AgentVersionRecord = {
 export type AgentDetail = {
   namespace: string;
   name: string;
+  packageKind: AgentPackageKind;
   latestVersion: string;
   lifecycleStatus: AgentLifecycleStatus;
   ownerHandle: string;
@@ -154,6 +158,7 @@ export type AgentDetail = {
 export type AgentVersionDetail = {
   namespace: string;
   name: string;
+  packageKind: AgentPackageKind;
   version: string;
   title: string;
   description: string;
@@ -189,8 +194,12 @@ export type PublishManifestMetadata = {
 };
 
 export type PublishRequest = {
+  packageKind?: AgentPackageKind;
   manifest: {
+    apiVersion?: string;
+    kind?: string;
     metadata: PublishManifestMetadata;
+    spec?: Record<string, unknown>;
   };
   readme: string;
   compatibility?: AgentCompatibility;

@@ -157,6 +157,22 @@ npm run demo:populate:local
 
 `demo:populate:local` targets the local API on `http://127.0.0.1:8787`, so it expects the Worker to already be running.
 
+To publish a real monolithic repository snapshot for demo purposes:
+
+```bash
+npm run dev:api:local
+npm run demo:populate:superpowers:local -- /path/to/superpowers
+```
+
+This publishes `obra/superpowers` as a `repository-snapshot` package with deep artifact trees and multi-target compatibility metadata.
+
+To fetch the same repository directly from GitHub first:
+
+```bash
+npm run dev:api:local
+npm run demo:populate:superpowers:github -- https://github.com/obra/superpowers main
+```
+
 To run the same flow as a single local check:
 
 ```bash

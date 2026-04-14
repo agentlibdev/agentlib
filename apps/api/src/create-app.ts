@@ -4,6 +4,7 @@ import type {
   AccountProfileUpdateInput,
   AgentCompatibility,
   AgentLifecycleStatus,
+  AgentPackageKind,
   GithubImportRequest,
   PublishRequest
 } from "@core/agent-record.js";
@@ -44,8 +45,18 @@ function isValidPublishRequest(value: unknown): value is PublishRequest {
       metadata?.title &&
       metadata?.description &&
       typeof candidate.readme === "string" &&
+      isValidPackageKind(candidate.packageKind) &&
       isValidCompatibility(candidate.compatibility) &&
       Array.isArray(candidate.artifacts)
+  );
+}
+
+function isValidPackageKind(value: unknown): value is AgentPackageKind | undefined {
+  return (
+    value === undefined ||
+    value === "agent" ||
+    value === "agent-skill" ||
+    value === "repository-snapshot"
   );
 }
 
@@ -353,6 +364,7 @@ export function createApp(
           agent: {
             namespace: detail.namespace,
             name: detail.name,
+            packageKind: detail.packageKind,
             latestVersion: detail.latestVersion,
             lifecycleStatus: detail.lifecycleStatus,
             ownerHandle: detail.ownerHandle,

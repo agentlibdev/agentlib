@@ -122,6 +122,7 @@ Use the helpers like this:
 
 - `publish:fixture:local` publishes the fixed smoke fixture used by the repo.
 - `publish:dir:local` publishes a real example package directory, such as the root fixture in `../agent-examples`.
+- `demo:populate:superpowers:local` publishes a real monolithic repository snapshot as `obra/superpowers`.
 
 Useful read endpoints after publish:
 
@@ -129,6 +130,29 @@ Useful read endpoints after publish:
 GET /api/v1/agents/:namespace/:name/versions/:version/artifacts
 GET /api/v1/agents/:namespace/:name/versions/:version/artifacts/:path
 ```
+
+Example monolithic repository populate:
+
+```bash
+npm run dev:api:local
+npm run demo:populate:superpowers:local -- /path/to/superpowers
+```
+
+Current behavior:
+
+- publishes `obra/superpowers`
+- marks it as `repository-snapshot`
+- carries compatibility metadata for major skill-capable agents
+- includes the repository artifact tree recursively, excluding local junk such as `.git` and `node_modules`
+
+GitHub-backed variant:
+
+```bash
+npm run dev:api:local
+npm run demo:populate:superpowers:github -- https://github.com/obra/superpowers main
+```
+
+This clones the repository to a temporary directory, publishes it through the same monolithic repository helper, and then deletes the temporary checkout.
 
 ## GitHub import draft flow
 
