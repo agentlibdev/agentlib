@@ -99,6 +99,7 @@ Keep the first list aligned with CLI built-ins:
 - gemini-cli
 - opencode
 - cursor
+- kiro
 - antigravity
 - windsurf
 - vscode

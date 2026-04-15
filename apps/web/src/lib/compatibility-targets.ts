@@ -10,6 +10,7 @@ export const COMPATIBILITY_TARGETS: CompatibilityTargetOption[] = [
   { id: "gemini-cli", label: "Gemini CLI" },
   { id: "opencode", label: "OpenCode" },
   { id: "cursor", label: "Cursor" },
+  { id: "kiro", label: "Kiro" },
   { id: "antigravity", label: "Antigravity" },
   { id: "windsurf", label: "Windsurf" },
   { id: "vscode", label: "VS Code" },
